@@ -1,0 +1,12 @@
+# dsh-any-skills bundle patch — mounts the plugin into the profile roster.
+#
+# The host half (exports ".") registers the /api/skills/* routes on the DSH
+# webServer; the browser half (exports "./client", declared by dsh.client)
+# adds the composer skill-picker button and the "Skill 管理" settings page.
+#
+# Install (persistent):  dsh plugin --profile web add .   (from this checkout;
+# `dsh plugin` reconciles dsh.profile.bundles automatically for dsh.bundle
+# packages).  Dev overlay:  dsh web --patch ./cordis.dev.yml
+- insert:
+    - id: dsh-any-skills
+      name: dsh-any-skills

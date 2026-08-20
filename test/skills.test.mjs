@@ -1,0 +1,221 @@
+/**
+ * dsh-any-skills — unit tests for the core logic (run against the built
+ * index.js bundle: `pnpm test`).
+ */
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import {
+  normalizeSkillName,
+  parseSkillText,
+  parseRepoInput,
+  parseNpmSpec,
+  scanDirectory,
+  installAllFromRoot,
+  uninstallSkill,
+  detectSources,
+  installSkillsFromTree,
+} from '../index.js'
+
+/* ---------------- parseSkillText ---------------- */
+
+test('parseSkillText: accepts a valid bundle skill', () => {
+  const raw = `---
+name: my-skill
+description: Does a thing.
+whenToUse: When needed.
+---
+# My Skill
+
+Body here.
+`
+  const parsed = parseSkillText(raw)
+  assert.ok(parsed)
+  assert.equal(parsed.name, 'my-skill')
+  assert.equal(parsed.description, 'Does a thing.')
+  assert.equal(parsed.whenToUse, 'When needed.')
+  assert.match(parsed.body, /Body here/)
+})
+
+test('parseSkillText: accepts quoted description', () => {
+  const raw = `---
+name: quoted-desc
+description: "Has, commas, and: colons"
+---
+Body.
+`
+  const parsed = parseSkillText(raw)
+  assert.ok(parsed)
+  assert.equal(parsed.description, 'Has, commas, and: colons')
+})
+
+test('parseSkillText: rejects missing frontmatter / name / description', () => {
+  assert.equal(parseSkillText('# no frontmatter\nbody'), undefined)
+  assert.equal(parseSkillText('---\nname: only-name\n---\nbody'), undefined)
+  assert.equal(parseSkillText('---\ndescription: only-desc\n---\nbody'), undefined)
+  assert.equal(parseSkillText('---\nname: 123\n---\nbody'), undefined)
+})
+
+test('parseSkillText: rejects invalid skill names', () => {
+  assert.equal(parseSkillText('---\nname: "My Skill!"\ndescription: x\n---\n'), undefined)
+  assert.equal(parseSkillText('---\nname: "under_score"\ndescription: x\n---\n'), undefined)
+  assert.equal(parseSkillText('---\nname: "UPPER"\ndescription: x\n---\n'), undefined)
+})
+
+/* ---------------- normalizeSkillName ---------------- */
+
+test('normalizeSkillName: kebab-case conversion', () => {
+  assert.equal(normalizeSkillName('My Cool Skill'), 'my-cool-skill')
+  assert.equal(normalizeSkillName('under_score'), 'under-score')
+  assert.equal(normalizeSkillName('  Spaces  '), 'spaces')
+  assert.equal(normalizeSkillName('!!junk!!'), 'junk')
+  assert.equal(normalizeSkillName(''), '')
+  assert.equal(normalizeSkillName('a.b_c'), 'a-b-c')
+})
+
+/* ---------------- parseRepoInput ---------------- */
+
+test('parseRepoInput: accepts all four GitHub forms', () => {
+  assert.deepEqual(parseRepoInput('owner/repo'), { owner: 'owner', repo: 'repo' })
+  assert.deepEqual(parseRepoInput('owner/repo.git'), { owner: 'owner', repo: 'repo' })
+  assert.deepEqual(parseRepoInput('https://github.com/owner/repo'), { owner: 'owner', repo: 'repo' })
+  assert.deepEqual(parseRepoInput('https://github.com/owner/repo/tree/main'), { owner: 'owner', repo: 'repo' })
+  assert.deepEqual(parseRepoInput('https://github.com/owner/repo.git'), { owner: 'owner', repo: 'repo' })
+  assert.deepEqual(parseRepoInput('git@github.com:owner/repo.git'), { owner: 'owner', repo: 'repo' })
+  assert.deepEqual(parseRepoInput('ssh://git@github.com/owner/repo'), { owner: 'owner', repo: 'repo' })
+  assert.deepEqual(parseRepoInput('owner/repo#dev'), { owner: 'owner', repo: 'repo', ref: 'dev' })
+})
+
+test('parseRepoInput: rejects non-GitHub or invalid input', () => {
+  assert.equal(parseRepoInput(''), undefined)
+  assert.equal(parseRepoInput('owner'), undefined)
+  assert.equal(parseRepoInput('https://gitlab.com/owner/repo'), undefined)
+  assert.equal(parseRepoInput('git@gitlab.com:owner/repo.git'), undefined)
+  assert.equal(parseRepoInput('https://example.com/owner/repo'), undefined)
+})
+
+/* ---------------- parseNpmSpec ---------------- */
+
+test('parseNpmSpec: names and versions', () => {
+  assert.deepEqual(parseNpmSpec('some-pkg'), { name: 'some-pkg' })
+  assert.deepEqual(parseNpmSpec('some-pkg@1.2.3'), { name: 'some-pkg', version: '1.2.3' })
+  assert.deepEqual(parseNpmSpec('@scope/pkg'), { name: '@scope/pkg' })
+  assert.deepEqual(parseNpmSpec('@scope/pkg@2.0.0'), { name: '@scope/pkg', version: '2.0.0' })
+  assert.equal(parseNpmSpec(''), undefined)
+  assert.equal(parseNpmSpec('UPPER CASE'), undefined)
+})
+
+/* ---------------- filesystem flow ---------------- */
+
+test('installAllFromRoot + listInstalled + uninstall round-trip', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-any-skills-test-'))
+  try {
+    const source = join(root, 'source')
+    await mkdir(join(source, 'alpha'), { recursive: true })
+    await writeFile(join(source, 'alpha', 'SKILL.md'), `---\nname: alpha-skill\ndescription: First skill.\n---\nBody A\n`)
+    await writeFile(join(source, 'beta.md'), `---\nname: beta-skill\ndescription: Second skill.\n---\nBody B\n`)
+    await writeFile(join(source, 'not-a-skill.md'), '# plain markdown\nno frontmatter\n')
+
+    const installDir = join(root, 'install')
+    const installed = await installAllFromRoot(source, installDir)
+    assert.equal(installed.length, 2)
+
+    const listed = await scanDirectory(installDir)
+    assert.deepEqual(listed.map((s) => s.name).sort(), ['alpha-skill', 'beta-skill'])
+    assert.ok(listed.every((s) => s.description !== ''))
+
+    const uninstall = await uninstallSkill(installDir, 'alpha-skill')
+    assert.ok(uninstall.ok)
+    const after = await scanDirectory(installDir)
+    assert.deepEqual(after.map((s) => s.name), ['beta-skill'])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('installBundleDir overwrites an existing same-name skill', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-any-skills-test-'))
+  try {
+    const installDir = join(root, 'install')
+    const source = join(root, 'source')
+    await mkdir(source, { recursive: true })
+    await writeFile(join(source, 'SKILL.md'), '---\nname: v1\ndescription: old\n---\nOld\n')
+    const first = await installAllFromRoot(source, installDir)
+    assert.equal(first[0].name, 'v1')
+    assert.equal(first[0].description, 'old')
+
+    await writeFile(join(source, 'SKILL.md'), '---\nname: v1\ndescription: new\n---\nNew\n')
+    const second = await installAllFromRoot(source, installDir)
+    assert.equal(second[0].name, 'v1')
+    assert.equal(second[0].description, 'new')
+    // re-import replaces the bundle instead of duplicating it
+    assert.deepEqual((await scanDirectory(installDir)).map((s) => s.name), ['v1'])
+    assert.equal((await scanDirectory(installDir))[0].description, 'new')
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('detectSources: finds project-level tool skill dirs', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-any-skills-test-'))
+  try {
+    // .git marks the project root
+    await mkdir(join(root, '.git'), { recursive: true })
+    await mkdir(join(root, '.claude', 'skills', 'proj-skill'), { recursive: true })
+    await writeFile(join(root, '.claude', 'skills', 'proj-skill', 'SKILL.md'), '---\nname: proj-skill\ndescription: Project skill.\n---\nBody\n')
+    await mkdir(join(root, '.opencode', 'skills'), { recursive: true })
+
+    const groups = await detectSources(root)
+    const claudeProject = groups.find((g) => g.id === 'claude-project')
+    assert.ok(claudeProject)
+    assert.equal(claudeProject.exists, true)
+    assert.deepEqual(claudeProject.skills.map((s) => s.name), ['proj-skill'])
+
+    const opencodeProject = groups.find((g) => g.id === 'opencode-project')
+    assert.ok(opencodeProject)
+    assert.equal(opencodeProject.exists, true)
+    assert.equal(opencodeProject.skills.length, 0)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('installSkillsFromTree: single-skill repo, collection dirs and top-level bundles', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-any-skills-test-'))
+  try {
+    const installDir = join(root, 'install')
+    const tree = join(root, 'tree')
+    // 1) single-skill repo: <root>/SKILL.md -> whole repo as one skill
+    await mkdir(join(tree, 'single'), { recursive: true })
+    await writeFile(join(tree, 'single', 'SKILL.md'), '---\nname: single-skill\ndescription: One.\n---\nBody\n')
+
+    const single = await installSkillsFromTree(join(tree, 'single'), installDir, 'fallback-name')
+    assert.deepEqual(single.map((s) => s.name), ['single-skill'])
+
+    // 2) multi-skill repo: skills/ + .agents/skills + top-level dirs
+    const multi = join(tree, 'multi')
+    await mkdir(join(multi, 'skills', 'from-skills'), { recursive: true })
+    await writeFile(join(multi, 'skills', 'from-skills', 'SKILL.md'), '---\nname: from-skills\ndescription: In skills dir.\n---\nBody\n')
+    await writeFile(join(multi, 'skills', 'flat-skill.md'), '---\nname: flat-skill\ndescription: Flat in skills dir.\n---\nBody\n')
+    await mkdir(join(multi, '.agents', 'skills', 'from-agents'), { recursive: true })
+    await writeFile(join(multi, '.agents', 'skills', 'from-agents', 'SKILL.md'), '---\nname: from-agents\ndescription: In .agents dir.\n---\nBody\n')
+    await mkdir(join(multi, 'top-level'), { recursive: true })
+    await writeFile(join(multi, 'top-level', 'SKILL.md'), '---\nname: top-level\ndescription: Top level bundle.\n---\nBody\n')
+    await mkdir(join(multi, 'not-a-skill'), { recursive: true })
+    await writeFile(join(multi, 'not-a-skill', 'README.md'), 'not a skill\n')
+
+    const multiResult = await installSkillsFromTree(multi, installDir, 'fallback')
+    assert.deepEqual(multiResult.map((s) => s.name).sort(), ['flat-skill', 'from-agents', 'from-skills', 'top-level'])
+
+    // 3) no skills -> empty
+    const emptyDir = join(tree, 'empty-dir')
+    await mkdir(emptyDir, { recursive: true })
+    await writeFile(join(emptyDir, 'README.md'), 'no skills here\n')
+    const empty = await installSkillsFromTree(emptyDir, join(root, 'empty-install'), 'x')
+    assert.deepEqual(empty, [])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})

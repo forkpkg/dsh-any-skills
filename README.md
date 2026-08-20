@@ -1,0 +1,153 @@
+# dsh-any-skills
+
+> Import, install and invoke Agent Skills in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from **Codex / Claude Code / OpenCode / GitHub / npm** — with a ⚡ composer-side skill picker and a **Skill 管理** settings page.
+>
+> 从 Codex / Claude Code / OpenCode / GitHub / npm 导入并安装技能（Agent Skills）到 `~/.dsh/skills`，支持在对话框旁一键插入 `/技能名` 调用，并在设置页提供完整的技能管理界面。
+
+![dsh-plugin](https://img.shields.io/badge/dsh-plugin-%40deepseek--ai%2Fdsh-blue) ![license](https://img.shields.io/badge/license-MIT-green)
+
+## 功能特性 / Features
+
+- **技能导入（Import）**
+  - Codex：`~/.codex/skills`、项目 `.codex/skills`
+  - Claude Code：`~/.claude/skills`、项目 `.claude/skills`
+  - OpenCode：项目 `.opencode/skills`、`.agents/skills`
+  - GitHub 仓库：`owner/repo`、HTTPS URL、SSH URL（`git@github.com:…`）、Git URL（`ssh://git@github.com/…`）
+  - 本机目录：任意包含 `SKILL.md` 的目录或 `.md` 技能文件
+- **技能安装（Install）**
+  - GitHub：下载 codeload tarball 并提取（参考 dsh-skill-market 的实现，无需 git 二进制）
+  - npm：通过 registry API 解析包 tarball 并提取
+  - 支持批量安装（空格 / 逗号 / 分号分隔）
+- **对话中调用（Invoke）**
+  - composer 旁 ⚡ 按钮 → 弹出可搜索的技能列表 → 选择后向输入框插入 `/skill-name`（DSH 原生用户调用手势，随消息一起加载技能）
+- **设置页（Settings）**：`设置 → Skill 管理`，列出已安装技能、卸载、按来源导入、GitHub/npm 安装
+
+所有导入/安装的技能写入 `~/.dsh/skills/`（可配置）。这是 DSH 原生技能提供器（`dsh-skill-filesystem`）的 `user-dsh` 根目录，会自动被监听 —— **无需任何额外注册**，模型即可读取新技能，`/skill-name` 手势立即可用。
+
+## 安装 / Installation
+
+```bash
+# 从插件源码目录（本仓库 checkout）安装到 web profile：
+cd dsh-any-skills
+dsh plugin --profile web add .
+# dsh 会自动把带 dsh.bundle 声明的包加入 dsh.profile.bundles 层
+```
+
+或从 Git 安装：
+
+```bash
+dsh plugin --profile web add "github:wmengxiang/dsh-any-skills#main"
+```
+
+安装后重启 `dsh web` 即可生效。
+
+## 使用 / Usage
+
+### 1. Composer ⚡ 技能选择器
+
+在对话输入框右侧（发送按钮旁）有一个 ⚡ 按钮：
+
+1. 点击打开技能选择弹窗，展示 `~/.dsh/skills` 下所有已安装技能（名称 + 描述）
+2. 顶部搜索框可过滤技能（按名称/描述，支持最近使用优先排序）
+3. 选择技能后自动在输入框插入 `/skill-name` 并附带空格 —— 发送消息时 DSH 会加载该技能
+
+### 2. 设置页 Skill 管理
+
+`设置（左下角齿轮）→ Skill 管理`：
+
+- **已安装技能**：列出所有已安装技能，可单个卸载（移入 `.trash-<时间戳>-<名称>`，可手动恢复）
+- **导入**：自动检测 Codex / Claude Code / OpenCode 的用户级与项目级技能目录，显示发现的技能与已安装标记（✓），一键导入；也支持输入本机目录路径导入（或使用系统目录选择器）
+- **安装**：输入 GitHub 仓库（`owner/repo` 或完整 URL）或 npm 包名，支持批量
+
+### 3. HTTP API
+
+Host 端在 DSH webServer 上注册同源 JSON API（浏览器端 UI 即调用此 API）：
+
+| Method | Path | Body | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/skills/list` | – | 列出已安装技能 |
+| GET | `/api/skills/sources?cwd=…` | – | 检测 Codex/Claude/OpenCode 可导入技能 |
+| POST | `/api/skills/import` | `{type, path?, repository?, sourceId?, cwd?, names?}` | 导入（type: codex/claude/opencode/local/github） |
+| POST | `/api/skills/install` | `{sources: [{type: 'github'\|'npm', value}]}` | 批量安装 |
+| DELETE | `/api/skills/uninstall` | `{name}` | 卸载（移入 .trash） |
+
+可变端点带有同源（same-origin）校验。
+
+## 技能格式 / Skill format
+
+导入要求（与 DSH 原生格式一致）：
+
+```
+<skill-name>/
+└── SKILL.md
+```
+
+`SKILL.md` 必须以 YAML frontmatter 开头，至少包含：
+
+```markdown
+---
+name: my-skill          # 必须：^[a-z0-9]+(?:-[a-z0-9]+)*$（kebab-case）
+description: 一句话描述
+---
+技能正文……
+```
+
+- 也支持扁平格式 `<skill-name>.md`
+- 导入时名称会自动规范化为 kebab-case（大写转小写、下划线转连字符等）
+- frontmatter 可选字段：`whenToUse`、`disable-model-invocation`、`user-invocable`、`metadata`
+
+## 配置 / Configuration
+
+可通过 profile 的 `cordis.patch.yml` 覆盖插件配置：
+
+```yaml
+- config:
+    - id: dsh-any-skills
+      config:
+        installDir: /path/to/custom/skills   # 默认 ~/.dsh/skills
+        githubToken: ''                       # 可选：GitHub API 令牌
+        githubTokenFile: ''                   # 可选：令牌文件路径（也可用环境变量 GITHUB_TOKEN）
+```
+
+## 开发与测试 / Development
+
+```bash
+pnpm install          # 安装 devDependencies
+pnpm typecheck        # tsc --noEmit
+pnpm test             # build + node --test（16 个单元测试：frontmatter/名称/仓库解析/文件系统流程/API/客户端 bundle）
+pnpm build            # esbuild：index.js（Host ESM）+ client.js（Client CJS + __ModuleLoader__ 握手）
+```
+
+开发测试：
+
+```bash
+# 先把插件装进 profile，再用 dev overlay 启动：
+dsh plugin --profile web add .
+dsh web --patch ./cordis.dev.yml
+```
+
+结构：
+
+```
+dsh-any-skills/
+├── package.json          # dsh.bundle.patch + dsh.client 声明
+├── cordis.patch.yml      # 组合层 patch（insert 插件行）
+├── cordis.dev.yml        # 开发用 overlay
+├── build.mjs             # esbuild 构建脚本
+├── index.ts              # Host 端：/api/skills/* 路由 + 技能管理逻辑
+├── client.ts             # Client 端：⚡ 按钮 + 技能选择弹窗 + Skill 管理设置页
+├── src/
+│   ├── skills.ts         # 核心：frontmatter 解析、名称规范化、扫描/复制/卸载
+│   └── remote.ts         # GitHub / npm tarball 解析与安装
+└── test/                 # node:test 单元测试
+```
+
+## 参考实现 / References
+
+- [dsh-skills-manager](https://github.com/Xichun123/dsh-skills-manager) — settings 侧边栏 + composer wrench 控件设计
+- [dsh-skill-market](https://github.com/QQ-M/dsh-skill-market) — GitHub tarball 安装到 `~/.dsh/skills`
+- [dsh-skill-picker](https://github.com/a735624258/dsh-skill-picker) — composer 旁可搜索技能选择器
+
+## License
+
+MIT

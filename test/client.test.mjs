@@ -1,0 +1,105 @@
+/**
+ * dsh-any-skills — client bundle handshake test.
+ *
+ * Loads the built lib client.js in a Node vm sandbox with a stub
+ * `window.__ModuleLoader__`, invokes the factory with a fake `require("react")`,
+ * then runs `apply(ctx)` against a fake slots registry to verify both Slot
+ * contributions (composer picker + settings section) register cleanly.
+ */
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import vm from 'node:vm'
+
+/** Minimal react stub: createElement returns a plain descriptor. */
+function createElementStub(type, props, ...children) {
+  return { type, props: props ?? null, children: children.length === 1 ? children[0] : children }
+}
+
+function loadClientBundle() {
+  const source = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
+  let captured = null
+  const sandbox = {
+    window: {
+      __ModuleLoader__: {
+        load(definition) {
+          captured = definition
+        },
+      },
+    },
+    console,
+  }
+  sandbox.window.window = sandbox.window
+  vm.createContext(sandbox)
+  vm.runInContext(source, sandbox)
+  assert.ok(captured, 'client bundle must call window.__ModuleLoader__.load')
+  assert.equal(captured.id, 'dsh-any-skills')
+
+  const factoryResult = captured.factory((specifier) => {
+    if (specifier === 'react') {
+      return {
+        createElement: createElementStub,
+        useState: (initial) => [initial, () => undefined],
+        useCallback: (fn) => fn,
+        useEffect: () => undefined,
+        useRef: (initial) => ({ current: initial ?? null }),
+      }
+    }
+    throw new Error(`unexpected require: ${specifier}`)
+  })
+  return factoryResult
+}
+
+test('client bundle: registers composer picker + settings section', () => {
+  const { inject, apply } = loadClientBundle()
+  // the array comes from the vm realm; compare element-wise
+  assert.ok(Array.isArray(inject) && inject.length === 1 && inject[0] === 'slots')
+
+  const registrations = []
+  const fakeSlots = {
+    inject(key, callback) {
+      registrations.push({ key, callback })
+      return () => undefined
+    },
+    register(opts, component) {
+      return { opts, component }
+    },
+  }
+  const ctx = {
+    slots: fakeSlots,
+    get(name) {
+      return name === 'workspaces' ? { pickDirectory: async () => '/tmp/picked' } : undefined
+    },
+    effect(callback) {
+      // real Cordis runs the effect body immediately
+      return callback() ?? (() => undefined)
+    },
+  }
+
+  apply(ctx)
+  const keys = registrations.map((r) => r.key)
+  assert.ok(keys.includes('conversation.input.right'), 'composer slot registered')
+  assert.ok(keys.includes('settings.section'), 'settings slot registered')
+
+  const composer = registrations.find((r) => r.key === 'conversation.input.right')
+  const rendered = composer.callback()
+  assert.equal(rendered.opts.name, 'conversation.input.right')
+  assert.equal(rendered.opts.id, 'any-skills-picker')
+  assert.equal(typeof rendered.component, 'function')
+
+  const settings = registrations.find((r) => r.key === 'settings.section')
+  const settingsRendered = settings.callback()
+  assert.equal(settingsRendered.opts.id, 'skills')
+  assert.equal(settingsRendered.opts.label, 'Skill 管理')
+  // injected pickDirectory prop flows through
+  assert.equal(typeof settingsRendered.opts.inject().pickDirectory, 'function')
+
+  // the composer component renders without throwing (open=false)
+  const tree = rendered.component({ session: { sessionId: 's1' }, input: { draft: 'hello' }, inputActions: { setDraft: () => undefined } })
+  assert.ok(tree !== null && typeof tree === 'object')
+})
+
+test('client bundle: apply tolerates missing slots', () => {
+  const { apply } = loadClientBundle()
+  assert.doesNotThrow(() => apply({ slots: undefined, get: () => undefined }))
+})
