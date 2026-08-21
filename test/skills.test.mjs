@@ -5,6 +5,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -232,4 +233,58 @@ test('installSkillsFromTree: single-skill repo, collection dirs and top-level bu
   } finally {
     await rm(root, { recursive: true, force: true })
   }
+})
+
+/* ---------------- uninstall / restore rejection matrix ---------------- */
+
+test('uninstallSkill: rejects invalid names and missing skills', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-as-edge-'))
+  try {
+    const bad = await uninstallSkill(dir, 'Bad Name!')
+    assert.equal(bad.ok, false)
+    assert.match(bad.message, /非法技能名/)
+
+    const missing = await uninstallSkill(dir, 'no-such-skill')
+    assert.equal(missing.ok, false)
+    assert.match(missing.message, /未找到已安装的技能/)
+
+    const { readdir } = await import('node:fs/promises')
+    assert.deepEqual(await readdir(dir), [], 'no stray trash entries created')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('restoreSkill: rejects invalid names, malformed/mismatched/missing trash', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-as-edge-'))
+  try {
+    const badName = await restoreSkill(dir, 'Bad Name!', '.trash-20260101000000-Bad-Name')
+    assert.equal(badName.ok, false)
+    assert.match(badName.message, /非法技能名/)
+
+    const malformed = await restoreSkill(dir, 'alpha', 'not-a-trash')
+    assert.equal(malformed.ok, false)
+    assert.match(malformed.message, /非法回收目录/)
+
+    const mismatched = await restoreSkill(dir, 'alpha', '.trash-20260101000000-beta')
+    assert.equal(mismatched.ok, false)
+    assert.match(mismatched.message, /不匹配/)
+
+    const missing = await restoreSkill(dir, 'alpha', '.trash-20260101000000-alpha')
+    assert.equal(missing.ok, false)
+    assert.match(missing.message, /未找到回收目录/)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+/* ---------------- build artifact sanity ---------------- */
+
+test('build artifacts: index.js and client.js ship the current bundle markers', () => {
+  const index = readFileSync(new URL('../index.js', import.meta.url), 'utf8')
+  const client = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
+  assert.match(index, /api\/skills\/restore/, 'index.js carries the restore route')
+  assert.match(client, /__ModuleLoader__/, 'client.js carries the module-loader handshake')
+  assert.match(client, /dsh-any-skills:show-picker/, 'client.js carries the picker-visibility preference')
+  assert.match(client, /dsh-as-switch/, 'client.js carries the settings switch styles')
 })
