@@ -16,7 +16,7 @@ function createElementStub(type, props, ...children) {
   return { type, props: props ?? null, children: children.length === 1 ? children[0] : children }
 }
 
-function loadClientBundle() {
+function loadClientBundle(extraSandbox = {}) {
   const source = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
   let captured = null
   const sandbox = {
@@ -28,6 +28,7 @@ function loadClientBundle() {
       },
     },
     console,
+    ...extraSandbox,
   }
   sandbox.window.window = sandbox.window
   vm.createContext(sandbox)
@@ -39,7 +40,7 @@ function loadClientBundle() {
     if (specifier === 'react') {
       return {
         createElement: createElementStub,
-        useState: (initial) => [initial, () => undefined],
+        useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => undefined],
         useCallback: (fn) => fn,
         useEffect: () => undefined,
         useRef: (initial) => ({ current: initial ?? null }),
@@ -97,6 +98,53 @@ test('client bundle: registers composer picker + settings section', () => {
   // the composer component renders without throwing (open=false)
   const tree = rendered.component({ session: { sessionId: 's1' }, input: { draft: 'hello' }, inputActions: { setDraft: () => undefined } })
   assert.ok(tree !== null && typeof tree === 'object')
+})
+
+test('client bundle: picker respects the show-picker preference', () => {
+  // default (no localStorage): picker renders
+  const enabled = loadClientBundle()
+  const { inject, apply } = enabled
+  const registrations = []
+  const ctx = {
+    slots: {
+      inject(key, callback) {
+        registrations.push({ key, callback })
+        return () => undefined
+      },
+      register(opts, component) {
+        return { opts, component }
+      },
+    },
+    effect(callback) {
+      return callback() ?? (() => undefined)
+    },
+  }
+  apply(ctx)
+  const composer = registrations.find((r) => r.key === 'conversation.input.right').callback()
+  assert.ok(composer.component({}) !== null, 'picker renders by default')
+
+  // localStorage says '0' (disabled): picker renders null
+  const disabled = loadClientBundle({
+    localStorage: { getItem: () => '0', setItem: () => undefined },
+  })
+  const registrations2 = []
+  const ctx2 = {
+    slots: {
+      inject(key, callback) {
+        registrations2.push({ key, callback })
+        return () => undefined
+      },
+      register(opts, component) {
+        return { opts, component }
+      },
+    },
+    effect(callback) {
+      return callback() ?? (() => undefined)
+    },
+  }
+  disabled.apply(ctx2)
+  const composer2 = registrations2.find((r) => r.key === 'conversation.input.right').callback()
+  assert.equal(composer2.component({}), null, 'picker hidden when disabled')
 })
 
 test('client bundle: apply tolerates missing slots', () => {

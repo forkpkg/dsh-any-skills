@@ -78,6 +78,12 @@ var CSS = [
   ".dsh-as-skill-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.12));border-radius:8px;min-width:0}",
   ".dsh-as-installed{color:var(--dsw-alias-success,#7bdca8);font-size:12px;font-weight:500}",
   ".dsh-as-code{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));padding:1px 5px;border-radius:4px;word-break:break-all}",
+  ".dsh-as-toggle{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary,#e6ebf2);user-select:none}",
+  ".dsh-as-switch{position:relative;width:36px;height:20px;flex:none;appearance:none;-webkit-appearance:none;margin:0;background:rgba(128,128,128,.32);border-radius:999px;cursor:pointer;transition:background .15s ease;outline:none}",
+  '.dsh-as-switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s ease}',
+  ".dsh-as-switch:checked{background:var(--dsw-alias-brand-primary,#4f8cff)}",
+  ".dsh-as-switch:checked::after{transform:translateX(16px)}",
+  ".dsh-as-switch:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#4f8cff);outline-offset:2px}",
   ".dsh-as-row-name{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
   ".dsh-as-row-desc{color:var(--dsw-alias-label-tertiary,#8a94a6);font-size:12px;line-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
   ".dsh-as-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
@@ -168,6 +174,28 @@ function saveUsage(usage) {
   } catch {
   }
 }
+var SHOW_PICKER_KEY = "dsh-any-skills:show-picker";
+var pickerListeners = /* @__PURE__ */ new Set();
+function isPickerEnabled() {
+  try {
+    return localStorage.getItem(SHOW_PICKER_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+function applyPickerEnabled(enabled) {
+  try {
+    localStorage.setItem(SHOW_PICKER_KEY, enabled ? "1" : "0");
+  } catch {
+  }
+  pickerListeners.forEach((listener) => listener());
+}
+function subscribePickerEnabled(listener) {
+  pickerListeners.add(listener);
+  return () => {
+    pickerListeners.delete(listener);
+  };
+}
 function rankByUsage(skills, usage) {
   return skills.slice().sort((a, b) => {
     const ua = usage[a.name];
@@ -182,6 +210,8 @@ function rankByUsage(skills, usage) {
   });
 }
 function SkillPickerButton(props) {
+  const [enabled, setEnabled] = (0, import_react.useState)(() => isPickerEnabled());
+  (0, import_react.useEffect)(() => subscribePickerEnabled(() => setEnabled(isPickerEnabled())), []);
   const [open, setOpen] = (0, import_react.useState)(false);
   const [skills, setSkills] = (0, import_react.useState)(void 0);
   const [error, setError] = (0, import_react.useState)(void 0);
@@ -251,6 +281,7 @@ function SkillPickerButton(props) {
   const ordered = rankByUsage(skills ?? [], usage);
   const q = query.trim().toLowerCase();
   const filtered = ordered.filter((skill) => q === "" || skill.name.toLowerCase().includes(q) || String(skill.description ?? "").toLowerCase().includes(q)).slice(0, 80);
+  if (!enabled) return null;
   return (0, import_react.createElement)(
     "div",
     { ref: boxRef, style: { position: "relative", display: "inline-flex", flex: "none" } },
@@ -314,6 +345,12 @@ function SkillsSettingsSection() {
   const [remoteInput, setRemoteInput] = (0, import_react.useState)("");
   const [expanded, setExpanded] = (0, import_react.useState)({});
   const [lastUninstall, setLastUninstall] = (0, import_react.useState)(null);
+  const [pickerEnabled, setPickerEnabledState] = (0, import_react.useState)(() => isPickerEnabled());
+  const togglePicker = (value) => {
+    setPickerEnabledState(value);
+    applyPickerEnabled(value);
+    setNotice(value ? "\u5DF2\u5F00\u542F \u26A1 \u6280\u80FD\u9009\u62E9\u6309\u94AE\uFF08\u5BF9\u8BDD\u6846\u65C1\uFF09" : "\u5DF2\u5173\u95ED \u26A1 \u6280\u80FD\u9009\u62E9\u6309\u94AE\uFF1B\u4ECD\u53EF\u5728\u8F93\u5165\u6846\u8F93\u5165 /\u6280\u80FD\u540D \u8C03\u7528\u6280\u80FD");
+  };
   const refresh = (0, import_react.useCallback)(async () => {
     setBusy(true);
     setError(void 0);
@@ -458,6 +495,27 @@ function SkillsSettingsSection() {
         "aria-label": "\u5173\u95ED\u63D0\u793A"
       }, "\xD7")
     ) : null,
+    (0, import_react.createElement)(
+      "section",
+      { className: "dsh-as-card" },
+      (0, import_react.createElement)(
+        "div",
+        { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" } },
+        (0, import_react.createElement)(
+          "label",
+          { className: "dsh-as-toggle" },
+          (0, import_react.createElement)("input", {
+            type: "checkbox",
+            className: "dsh-as-switch",
+            checked: pickerEnabled,
+            onChange: (event) => togglePicker(event.currentTarget.checked),
+            "aria-label": "\u5728\u5BF9\u8BDD\u8F93\u5165\u6846\u65C1\u663E\u793A \u26A1 \u6280\u80FD\u9009\u62E9\u6309\u94AE"
+          }),
+          (0, import_react.createElement)("span", null, "\u5728\u5BF9\u8BDD\u8F93\u5165\u6846\u65C1\u663E\u793A \u26A1 \u6280\u80FD\u9009\u62E9\u6309\u94AE")
+        ),
+        (0, import_react.createElement)("span", { className: "dsh-as-sub", style: { margin: 0 } }, "\u5173\u95ED\u540E\u4ECD\u53EF\u5728\u8F93\u5165\u6846\u76F4\u63A5\u8F93\u5165 /\u6280\u80FD\u540D \u8C03\u7528")
+      )
+    ),
     (0, import_react.createElement)(
       "section",
       { className: "dsh-as-card" },
