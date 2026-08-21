@@ -18,7 +18,7 @@
  */
 import { createElement as h, useCallback, useEffect, useRef, useState } from 'react'
 
-export const inject = ['slots']
+export const inject = ['slots', 'workspaces']
 
 const NS = 'dsh-any-skills'
 const API = '/api/skills'
@@ -204,8 +204,12 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> {
   const [usage, setUsage] = useState<Record<string, UsageEntry>>(() => loadUsage())
   const boxRef = useRef<HTMLDivElement | null>(null)
 
-  const load = useCallback(async () => {
-    if (skills !== undefined || error !== undefined) return
+  const load = useCallback(async (force = false) => {
+    if (!force && (skills !== undefined || error !== undefined)) return
+    if (force) {
+      setSkills(undefined)
+      setError(undefined)
+    }
     try {
       const data = await apiList()
       setSkills(data.skills ?? [])
@@ -215,7 +219,7 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> {
   }, [skills, error])
 
   const toggle = () => {
-    if (!open) void load()
+    if (!open) void load(true) // 每次打开都重新拉取，导入新技能后立即可见
     setOpen((value) => !value)
   }
 
@@ -283,13 +287,23 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> {
       'aria-expanded': open,
     }, h(IconBolt, { size: 16 })),
     open ? h('div', { className: 'dsh-as-pop', role: 'dialog', 'aria-label': '技能选择' },
-      h('input', {
-        className: 'dsh-as-search',
-        value: query,
-        onChange: (event: { currentTarget: { value: string } }) => setQuery(event.currentTarget.value),
-        placeholder: '搜索技能…',
-        autoFocus: true,
-      }),
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 4, padding: '8px 10px 2px' } },
+        h('input', {
+          className: 'dsh-as-search',
+          style: { margin: 0, flex: 1 },
+          value: query,
+          onChange: (event: { currentTarget: { value: string } }) => setQuery(event.currentTarget.value),
+          placeholder: '搜索技能…',
+          autoFocus: true,
+        }),
+        h('button', {
+          type: 'button',
+          className: 'dsh-as-btn',
+          onClick: () => void load(true),
+          title: '刷新技能列表',
+          'aria-label': '刷新技能列表',
+        }, h(IconRefresh, { size: 12 })),
+      ),
       error !== undefined
         ? h('div', { className: 'dsh-as-status' }, `加载失败：${error}`)
         : skills === undefined
@@ -320,6 +334,7 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
   const [installed, setInstalled] = useState<SkillView[] | null>(null)
   const [installDir, setInstallDir] = useState<string | undefined>(undefined)
   const [sources, setSources] = useState<SourceGroup[] | null>(null)
+  const [srcCwd, setSrcCwd] = useState<string | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | undefined>(undefined)
@@ -334,6 +349,7 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
       setInstalled(list.skills)
       setInstallDir(list.installDir)
       setSources(src.sources)
+      setSrcCwd(src.cwd)
     } catch (cause) {
       setError(messageOf(cause))
     } finally {
@@ -379,7 +395,10 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
   })
 
   const pickLocal = () => run(async () => {
-    if (typeof props.pickDirectory !== 'function') return
+    if (typeof props.pickDirectory !== 'function') {
+      setNotice('目录选择器不可用：workspaces 服务未挂载，请直接在上方输入目录路径')
+      return
+    }
     const path = await props.pickDirectory()
     if (path !== null && path !== '') {
       const result = await apiImport({ type: 'local', path })
@@ -455,6 +474,9 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
     h('section', { className: 'dsh-as-card' },
       h('h3', null, '导入'),
       h('p', { className: 'dsh-as-sub' }, '从 Codex / Claude Code / OpenCode 或本机目录复制技能到 ~/.dsh/skills。'),
+      srcCwd !== undefined
+        ? h('p', { className: 'dsh-as-sub' }, `项目级目录基于服务启动目录检测：${srcCwd}`)
+        : null,
       sources === null
         ? h('p', { className: 'dsh-as-status' }, '正在扫描来源…')
         : h('div', { style: { display: 'grid', gap: 8 } },
@@ -483,9 +505,13 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
           placeholder: '本机目录路径（含 SKILL.md 或技能文件）',
           'aria-label': '本机目录路径',
         }),
-        typeof props.pickDirectory === 'function'
-          ? h('button', { type: 'button', className: 'dsh-as-btn2', disabled: busy, onClick: () => void pickLocal() }, '选择目录')
-          : null,
+        h('button', {
+          type: 'button',
+          className: 'dsh-as-btn2',
+          disabled: busy || typeof props.pickDirectory !== 'function',
+          onClick: () => void pickLocal(),
+          title: typeof props.pickDirectory === 'function' ? '打开目录选择器' : '目录选择器（workspaces 服务）不可用，请直接输入目录路径',
+        }, '选择目录'),
         h('button', {
           type: 'button',
           className: 'dsh-as-btn2 dsh-as-primary',

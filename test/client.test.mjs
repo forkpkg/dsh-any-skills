@@ -53,7 +53,7 @@ function loadClientBundle() {
 test('client bundle: registers composer picker + settings section', () => {
   const { inject, apply } = loadClientBundle()
   // the array comes from the vm realm; compare element-wise
-  assert.ok(Array.isArray(inject) && inject.length === 1 && inject[0] === 'slots')
+  assert.deepEqual([...inject].sort(), ['slots', 'workspaces'].sort(), 'inject slots + workspaces')
 
   const registrations = []
   const fakeSlots = {

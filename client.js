@@ -26,7 +26,7 @@ __export(client_exports, {
 });
 module.exports = __toCommonJS(client_exports);
 var import_react = require("react");
-var inject = ["slots"];
+var inject = ["slots", "workspaces"];
 var NS = "dsh-any-skills";
 var API = "/api/skills";
 var USAGE_KEY = "dsh-any-skills:usage";
@@ -163,8 +163,12 @@ function SkillPickerButton(props) {
   const [query, setQuery] = (0, import_react.useState)("");
   const [usage, setUsage] = (0, import_react.useState)(() => loadUsage());
   const boxRef = (0, import_react.useRef)(null);
-  const load = (0, import_react.useCallback)(async () => {
-    if (skills !== void 0 || error !== void 0) return;
+  const load = (0, import_react.useCallback)(async (force = false) => {
+    if (!force && (skills !== void 0 || error !== void 0)) return;
+    if (force) {
+      setSkills(void 0);
+      setError(void 0);
+    }
     try {
       const data = await apiList();
       setSkills(data.skills ?? []);
@@ -173,7 +177,7 @@ function SkillPickerButton(props) {
     }
   }, [skills, error]);
   const toggle = () => {
-    if (!open) void load();
+    if (!open) void load(true);
     setOpen((value) => !value);
   };
   const pick = (name) => {
@@ -236,13 +240,25 @@ function SkillPickerButton(props) {
     open ? (0, import_react.createElement)(
       "div",
       { className: "dsh-as-pop", role: "dialog", "aria-label": "\u6280\u80FD\u9009\u62E9" },
-      (0, import_react.createElement)("input", {
-        className: "dsh-as-search",
-        value: query,
-        onChange: (event) => setQuery(event.currentTarget.value),
-        placeholder: "\u641C\u7D22\u6280\u80FD\u2026",
-        autoFocus: true
-      }),
+      (0, import_react.createElement)(
+        "div",
+        { style: { display: "flex", alignItems: "center", gap: 4, padding: "8px 10px 2px" } },
+        (0, import_react.createElement)("input", {
+          className: "dsh-as-search",
+          style: { margin: 0, flex: 1 },
+          value: query,
+          onChange: (event) => setQuery(event.currentTarget.value),
+          placeholder: "\u641C\u7D22\u6280\u80FD\u2026",
+          autoFocus: true
+        }),
+        (0, import_react.createElement)("button", {
+          type: "button",
+          className: "dsh-as-btn",
+          onClick: () => void load(true),
+          title: "\u5237\u65B0\u6280\u80FD\u5217\u8868",
+          "aria-label": "\u5237\u65B0\u6280\u80FD\u5217\u8868"
+        }, (0, import_react.createElement)(IconRefresh, { size: 12 }))
+      ),
       error !== void 0 ? (0, import_react.createElement)("div", { className: "dsh-as-status" }, `\u52A0\u8F7D\u5931\u8D25\uFF1A${error}`) : skills === void 0 ? (0, import_react.createElement)("div", { className: "dsh-as-status" }, "\u52A0\u8F7D\u4E2D\u2026") : (0, import_react.createElement)(
         "div",
         { className: "dsh-as-list" },
@@ -265,6 +281,7 @@ function SkillsSettingsSection(props) {
   const [installed, setInstalled] = (0, import_react.useState)(null);
   const [installDir, setInstallDir] = (0, import_react.useState)(void 0);
   const [sources, setSources] = (0, import_react.useState)(null);
+  const [srcCwd, setSrcCwd] = (0, import_react.useState)(void 0);
   const [busy, setBusy] = (0, import_react.useState)(false);
   const [notice, setNotice] = (0, import_react.useState)(void 0);
   const [error, setError] = (0, import_react.useState)(void 0);
@@ -278,6 +295,7 @@ function SkillsSettingsSection(props) {
       setInstalled(list.skills);
       setInstallDir(list.installDir);
       setSources(src.sources);
+      setSrcCwd(src.cwd);
     } catch (cause) {
       setError(messageOf(cause));
     } finally {
@@ -317,7 +335,10 @@ function SkillsSettingsSection(props) {
     await refresh();
   });
   const pickLocal = () => run(async () => {
-    if (typeof props.pickDirectory !== "function") return;
+    if (typeof props.pickDirectory !== "function") {
+      setNotice("\u76EE\u5F55\u9009\u62E9\u5668\u4E0D\u53EF\u7528\uFF1Aworkspaces \u670D\u52A1\u672A\u6302\u8F7D\uFF0C\u8BF7\u76F4\u63A5\u5728\u4E0A\u65B9\u8F93\u5165\u76EE\u5F55\u8DEF\u5F84");
+      return;
+    }
     const path = await props.pickDirectory();
     if (path !== null && path !== "") {
       const result = await apiImport({ type: "local", path });
@@ -405,6 +426,7 @@ function SkillsSettingsSection(props) {
       { className: "dsh-as-card" },
       (0, import_react.createElement)("h3", null, "\u5BFC\u5165"),
       (0, import_react.createElement)("p", { className: "dsh-as-sub" }, "\u4ECE Codex / Claude Code / OpenCode \u6216\u672C\u673A\u76EE\u5F55\u590D\u5236\u6280\u80FD\u5230 ~/.dsh/skills\u3002"),
+      srcCwd !== void 0 ? (0, import_react.createElement)("p", { className: "dsh-as-sub" }, `\u9879\u76EE\u7EA7\u76EE\u5F55\u57FA\u4E8E\u670D\u52A1\u542F\u52A8\u76EE\u5F55\u68C0\u6D4B\uFF1A${srcCwd}`) : null,
       sources === null ? (0, import_react.createElement)("p", { className: "dsh-as-status" }, "\u6B63\u5728\u626B\u63CF\u6765\u6E90\u2026") : (0, import_react.createElement)(
         "div",
         { style: { display: "grid", gap: 8 } },
@@ -440,7 +462,13 @@ function SkillsSettingsSection(props) {
           placeholder: "\u672C\u673A\u76EE\u5F55\u8DEF\u5F84\uFF08\u542B SKILL.md \u6216\u6280\u80FD\u6587\u4EF6\uFF09",
           "aria-label": "\u672C\u673A\u76EE\u5F55\u8DEF\u5F84"
         }),
-        typeof props.pickDirectory === "function" ? (0, import_react.createElement)("button", { type: "button", className: "dsh-as-btn2", disabled: busy, onClick: () => void pickLocal() }, "\u9009\u62E9\u76EE\u5F55") : null,
+        (0, import_react.createElement)("button", {
+          type: "button",
+          className: "dsh-as-btn2",
+          disabled: busy || typeof props.pickDirectory !== "function",
+          onClick: () => void pickLocal(),
+          title: typeof props.pickDirectory === "function" ? "\u6253\u5F00\u76EE\u5F55\u9009\u62E9\u5668" : "\u76EE\u5F55\u9009\u62E9\u5668\uFF08workspaces \u670D\u52A1\uFF09\u4E0D\u53EF\u7528\uFF0C\u8BF7\u76F4\u63A5\u8F93\u5165\u76EE\u5F55\u8DEF\u5F84"
+        }, "\u9009\u62E9\u76EE\u5F55"),
         (0, import_react.createElement)("button", {
           type: "button",
           className: "dsh-as-btn2 dsh-as-primary",
