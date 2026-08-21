@@ -53,7 +53,7 @@ function loadClientBundle() {
 test('client bundle: registers composer picker + settings section', () => {
   const { inject, apply } = loadClientBundle()
   // the array comes from the vm realm; compare element-wise
-  assert.deepEqual([...inject].sort(), ['slots', 'workspaces'].sort(), 'inject slots + workspaces')
+  assert.deepEqual([...inject], ['slots'], 'inject slots only')
 
   const registrations = []
   const fakeSlots = {
@@ -67,8 +67,8 @@ test('client bundle: registers composer picker + settings section', () => {
   }
   const ctx = {
     slots: fakeSlots,
-    get(name) {
-      return name === 'workspaces' ? { pickDirectory: async () => '/tmp/picked' } : undefined
+    get() {
+      return undefined // no workspaces service — the settings page must not depend on it
     },
     effect(callback) {
       // real Cordis runs the effect body immediately
@@ -91,8 +91,8 @@ test('client bundle: registers composer picker + settings section', () => {
   const settingsRendered = settings.callback()
   assert.equal(settingsRendered.opts.id, 'skills')
   assert.equal(settingsRendered.opts.label, 'Skill 管理')
-  // injected pickDirectory prop flows through
-  assert.equal(typeof settingsRendered.opts.inject().pickDirectory, 'function')
+  // no directory-picker inject anymore (scheme A: no native picker entry)
+  assert.equal(settingsRendered.opts.inject, undefined)
 
   // the composer component renders without throwing (open=false)
   const tree = rendered.component({ session: { sessionId: 's1' }, input: { draft: 'hello' }, inputActions: { setDraft: () => undefined } })

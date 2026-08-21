@@ -55,9 +55,9 @@ dsh plugin --profile web add "github:wmengxiang/dsh-any-skills#main"
 
 `设置（左下角齿轮）→ Skill 管理`：
 
-- **已安装技能**：列出所有已安装技能，可单个卸载（移入 `.trash-<时间戳>-<名称>`，可手动恢复）
-- **导入**：自动检测 Codex / Claude Code / OpenCode 的用户级与项目级技能目录，显示发现的技能与已安装标记（✓），一键导入；也支持输入本机目录路径导入（或使用系统目录选择器）
-- **安装**：输入 GitHub 仓库（`owner/repo` 或完整 URL）或 npm 包名，支持批量
+- **已安装技能**：列出所有已安装技能，可单个卸载（移入 `.trash-<时间戳>-<名称>`，可手动恢复）；卸载后提示中包含回收目录名、一键「恢复」按钮与 `mv` 手动恢复命令
+- **导入**：自动检测 Codex / Claude Code / OpenCode 的用户级与项目级技能目录，每行显示**绝对路径**与**技能数量**；点击行可**展开**查看每个技能的详情（名称/描述/路径/已安装标记），支持「导入全部」或对单个技能单独导入；也支持输入本机目录路径直接导入
+- **安装**：输入 GitHub 仓库（`owner/repo` 或完整 URL）或 npm 包名，支持批量；安装过程中按钮禁用并显示加载动画，防止重复操作
 
 ### 3. HTTP API
 
@@ -67,9 +67,10 @@ Host 端在 DSH webServer 上注册同源 JSON API（浏览器端 UI 即调用�
 | --- | --- | --- | --- |
 | GET | `/api/skills/list` | – | 列出已安装技能 |
 | GET | `/api/skills/sources?cwd=…` | – | 检测 Codex/Claude/OpenCode 可导入技能 |
-| POST | `/api/skills/import` | `{type, path?, repository?, sourceId?, cwd?, names?}` | 导入（type: codex/claude/opencode/local/github） |
+| POST | `/api/skills/import` | `{type, path?, repository?, sourceId?, cwd?, names?}` | 导入（type: codex/claude/opencode/local/github；`names` 可只导入指定技能） |
 | POST | `/api/skills/install` | `{sources: [{type: 'github'\|'npm', value}]}` | 批量安装 |
-| DELETE | `/api/skills/uninstall` | `{name}` | 卸载（移入 .trash） |
+| DELETE | `/api/skills/uninstall` | `{name}` | 卸载（返回 `trash` 回收目录名；移入 .trash） |
+| POST | `/api/skills/restore` | `{name, trash}` | 从 .trash 恢复技能 |
 
 可变端点带有同源（same-origin）校验。
 

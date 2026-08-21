@@ -272,14 +272,34 @@ export async function installAllFromRoot(root: string, installDir: string): Prom
 }
 
 /** Move an installed skill into .trash-<timestamp>-<name> (recoverable). */
-export async function uninstallSkill(installDir: string, name: string): Promise<{ ok: boolean; message: string }> {
+export async function uninstallSkill(
+  installDir: string,
+  name: string,
+): Promise<{ ok: boolean; message: string; trash?: string }> {
   if (!/^[\w.-]+$/.test(name)) return { ok: false, message: `非法技能名: ${name}` }
   const target = join(installDir, name)
   if (!(await pathExists(target))) return { ok: false, message: `未找到已安装的技能: ${name}` }
   const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
   const trash = join(installDir, `.trash-${ts}-${name}`)
   await rename(target, trash)
-  return { ok: true, message: `已卸载 ${name}（移入 ${basename(trash)}，可手动恢复）` }
+  return { ok: true, message: `已卸载 ${name}（移入 ${basename(trash)}，可手动恢复）`, trash: basename(trash) }
+}
+
+/** Restore a trashed skill back to installDir/<name> . */
+export async function restoreSkill(
+  installDir: string,
+  name: string,
+  trash: string,
+): Promise<{ ok: boolean; message: string }> {
+  if (!isValidSkillName(name)) return { ok: false, message: `非法技能名: ${name}` }
+  if (!/^\.trash-\d{14}-[\w.-]+$/.test(trash)) return { ok: false, message: `非法回收目录名: ${trash}` }
+  if (!trash.endsWith(`-${name}`)) return { ok: false, message: `回收目录与技能名不匹配: ${trash} / ${name}` }
+  const trashPath = join(installDir, trash)
+  if (!(await pathExists(trashPath))) return { ok: false, message: `未找到回收目录: ${trash}` }
+  const target = join(installDir, name)
+  await rm(target, { recursive: true, force: true })
+  await rename(trashPath, target)
+  return { ok: true, message: `已恢复 ${name}（从 ${trash} 移回安装目录）` }
 }
 
 /** Walk up from cwd to the nearest directory containing a `.git` entry. */

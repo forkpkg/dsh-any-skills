@@ -24,10 +24,12 @@ import {
   detectSources,
   installAllFromRoot,
   installBundleDir,
+  installFlatFile,
   listInstalled,
   normalizeSkillName,
   pathExists,
   resolveSourceGroup,
+  restoreSkill,
   scanDirectory,
   uninstallSkill,
 } from './src/skills.js'
@@ -37,7 +39,7 @@ export const name = 'dsh-any-skills'
 export const inject = ['webServer']
 
 // Re-export the core logic for other host plugins and for tests.
-export { parseSkillText, installAllFromRoot, detectSources, uninstallSkill, normalizeSkillName, scanDirectory } from './src/skills.js'
+export { parseSkillText, installAllFromRoot, detectSources, uninstallSkill, restoreSkill, normalizeSkillName, scanDirectory } from './src/skills.js'
 export { parseRepoInput, parseNpmSpec, installFromGitHub, installFromNpm, installSkillsFromTree } from './src/remote.js'
 
 export interface Config {
@@ -137,6 +139,15 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, installDir: 
       return sendJson(res, 200, await uninstallSkill(installDir, name))
     }
 
+    if (req.method === 'POST' && pathname === '/api/skills/restore') {
+      if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, message: 'untrusted origin' })
+      const body = await readJsonBody(req)
+      const name = typeof body?.name === 'string' ? body.name.trim() : ''
+      const trash = typeof body?.trash === 'string' ? body.trash.trim() : ''
+      if (name === '' || trash === '') return sendJson(res, 400, { ok: false, message: 'name and trash are required' })
+      return sendJson(res, 200, await restoreSkill(installDir, name, trash))
+    }
+
     sendJson(res, 404, { ok: false, message: 'not found' })
   } catch (error) {
     sendJson(res, 500, { ok: false, message: errorMessage(error) })
@@ -183,7 +194,11 @@ async function importSkills(
             skipped.push(skill.name)
             continue
           }
-          imported.push(await installBundleDir(skill.path, installDir))
+          imported.push(
+            skill.kind === 'flat'
+              ? await installFlatFile(skill.path, installDir)
+              : await installBundleDir(skill.path, installDir),
+          )
         }
       }
       return { ok: true, imported, ...(skipped.length > 0 ? { skipped } : {}) }

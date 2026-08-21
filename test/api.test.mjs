@@ -109,12 +109,36 @@ test('host API: list / import / sources / uninstall round-trip', async () => {
     assert.equal(r.json.imported.length, 0)
     assert.deepEqual(r.json.skipped, ['proj-skill'])
 
-    // uninstall
+    // single-skill import via names filter (second project skill, import only one)
+    await mkdir(join(root, 'project', '.claude', 'skills', 'gamma'), { recursive: true })
+    await writeFile(join(root, 'project', '.claude', 'skills', 'gamma', 'SKILL.md'), '---\nname: gamma-skill\ndescription: Third skill.\n---\nBody\n')
+    r = await request('POST', '/api/skills/import', { type: 'claude', sourceId: 'claude-project', cwd: join(root, 'project'), names: ['gamma-skill'] })
+    assert.equal(r.json.ok, true)
+    assert.equal(r.json.imported.length, 1)
+    assert.equal(r.json.imported[0].name, 'gamma-skill')
+    r = await request('GET', '/api/skills/list')
+    assert.deepEqual(r.json.skills.map((s) => s.name).sort(), ['alpha-skill', 'beta-skill', 'gamma-skill', 'proj-skill'])
+
+    // uninstall returns the trash dir name
     r = await request('DELETE', '/api/skills/uninstall', { name: 'alpha-skill' })
     assert.equal(r.json.ok, true)
+    assert.match(r.json.trash, /^\.trash-\d{14}-alpha-skill$/)
+    const trashName = r.json.trash
     r = await request('GET', '/api/skills/list')
-    assert.equal(r.json.skills.length, 2)
+    assert.equal(r.json.skills.length, 3)
     assert.ok(!r.json.skills.some((s) => s.name === 'alpha-skill'))
+
+    // restore from trash
+    r = await request('POST', '/api/skills/restore', { name: 'alpha-skill', trash: trashName })
+    assert.equal(r.json.ok, true)
+    r = await request('GET', '/api/skills/list')
+    assert.ok(r.json.skills.some((s) => s.name === 'alpha-skill'), 'alpha-skill restored')
+
+    // restore rejects bad input
+    r = await request('POST', '/api/skills/restore', { name: 'alpha-skill', trash: 'not-a-trash' })
+    assert.equal(r.json.ok, false)
+    r = await request('POST', '/api/skills/restore', { name: 'alpha-skill', trash: '.trash-20260101000000-other-skill' })
+    assert.equal(r.json.ok, false)
 
     // uninstall unknown skill
     r = await request('DELETE', '/api/skills/uninstall', { name: 'nope' })

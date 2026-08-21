@@ -26,7 +26,7 @@ __export(client_exports, {
 });
 module.exports = __toCommonJS(client_exports);
 var import_react = require("react");
-var inject = ["slots", "workspaces"];
+var inject = ["slots"];
 var NS = "dsh-any-skills";
 var API = "/api/skills";
 var USAGE_KEY = "dsh-any-skills:usage";
@@ -48,6 +48,7 @@ var apiSources = (cwd) => api(`${API}/sources?cwd=${encodeURIComponent(cwd)}`);
 var apiImport = (body) => api(`${API}/import`, { method: "POST", body: JSON.stringify(body) });
 var apiInstall = (sources) => api(`${API}/install`, { method: "POST", body: JSON.stringify({ sources }) });
 var apiUninstall = (name) => api(`${API}/uninstall`, { method: "DELETE", body: JSON.stringify({ name }) });
+var apiRestore = (name, trash) => api(`${API}/restore`, { method: "POST", body: JSON.stringify({ name, trash }) });
 var STYLE_ID = "dsh-any-skills-style";
 var CSS = [
   ".dsh-as-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:none;margin:0 2px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.28));border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary,#c9d2e0);cursor:pointer;padding:0;transition:background .15s ease,color .15s ease,border-color .15s ease}",
@@ -68,6 +69,15 @@ var CSS = [
   ".dsh-as-sub{color:var(--dsw-alias-label-tertiary,#8a94a6);font-size:12.5px;margin:-4px 0 2px}",
   ".dsh-as-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.16));border-radius:10px;min-width:0}",
   ".dsh-as-row-main{flex:1;min-width:0}",
+  ".dsh-as-count{display:inline-flex;align-items:center;margin-left:8px;padding:0 8px;border-radius:999px;background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));color:var(--dsw-alias-label-secondary,#c9d2e0);font-size:11.5px;font-weight:600;vertical-align:2px}",
+  ".dsh-as-caret{color:var(--dsw-alias-label-tertiary,#8a94a6);font-size:12px;flex:none}",
+  ".dsh-as-card-row{display:grid;gap:0;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.16));border-radius:10px;overflow:hidden}",
+  ".dsh-as-card-row .dsh-as-row{border:none;border-radius:0}",
+  ".dsh-as-card-row.dsh-as-row-open .dsh-as-row{background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.06))}",
+  ".dsh-as-skill-list{display:grid;gap:6px;padding:8px 10px 10px;border-top:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.12))}",
+  ".dsh-as-skill-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.12));border-radius:8px;min-width:0}",
+  ".dsh-as-installed{color:var(--dsw-alias-success,#7bdca8);font-size:12px;font-weight:500}",
+  ".dsh-as-code{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));padding:1px 5px;border-radius:4px;word-break:break-all}",
   ".dsh-as-row-name{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
   ".dsh-as-row-desc{color:var(--dsw-alias-label-tertiary,#8a94a6);font-size:12px;line-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
   ".dsh-as-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}",
@@ -120,10 +130,22 @@ function IconTrash() {
     (0, import_react.createElement)("path", { d: "M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z" })
   );
 }
-function IconRefresh() {
+function IconRefresh(props) {
   return (0, import_react.createElement)(
     "svg",
-    { width: 14, height: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true, style: { flex: "0 0 auto" } },
+    {
+      width: props.size ?? 14,
+      height: props.size ?? 14,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: 2,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": true,
+      className: props.spin === true ? "dsh-as-spin" : void 0,
+      style: { flex: "0 0 auto" }
+    },
     (0, import_react.createElement)("path", { d: "M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" })
   );
 }
@@ -277,7 +299,7 @@ function SkillPickerButton(props) {
     ) : null
   );
 }
-function SkillsSettingsSection(props) {
+function SkillsSettingsSection() {
   const [installed, setInstalled] = (0, import_react.useState)(null);
   const [installDir, setInstallDir] = (0, import_react.useState)(void 0);
   const [sources, setSources] = (0, import_react.useState)(null);
@@ -287,6 +309,8 @@ function SkillsSettingsSection(props) {
   const [error, setError] = (0, import_react.useState)(void 0);
   const [localPath, setLocalPath] = (0, import_react.useState)("");
   const [remoteInput, setRemoteInput] = (0, import_react.useState)("");
+  const [expanded, setExpanded] = (0, import_react.useState)({});
+  const [lastUninstall, setLastUninstall] = (0, import_react.useState)(null);
   const refresh = (0, import_react.useCallback)(async () => {
     setBusy(true);
     setError(void 0);
@@ -320,6 +344,16 @@ function SkillsSettingsSection(props) {
   }, []);
   const uninstall = (name) => run(async () => {
     const result = await apiUninstall(name);
+    if (result.trash !== void 0) {
+      setLastUninstall({ name, trash: result.trash, message: result.message });
+    } else {
+      setNotice(result.message);
+    }
+    await refresh();
+  });
+  const restore = (info) => run(async () => {
+    const result = await apiRestore(info.name, info.trash);
+    setLastUninstall(null);
     setNotice(result.message);
     await refresh();
   });
@@ -328,23 +362,20 @@ function SkillsSettingsSection(props) {
     setNotice(`\u5DF2\u5BFC\u5165 ${result.imported.length} \u4E2A\u6280\u80FD${result.skipped !== void 0 && result.skipped.length > 0 ? `\uFF08${result.skipped.length} \u4E2A\u5DF2\u5B58\u5728\uFF0C\u8DF3\u8FC7\uFF09` : ""}`);
     await refresh();
   });
+  const importOne = (group, skill) => run(async () => {
+    const result = await apiImport({ type: group.tool, sourceId: group.id, names: [skill.name] });
+    setNotice(`\u5DF2\u5BFC\u5165 ${result.imported.length} \u4E2A\u6280\u80FD${result.skipped !== void 0 && result.skipped.length > 0 ? `\uFF08${result.skipped.length} \u4E2A\u5DF2\u5B58\u5728\uFF0C\u8DF3\u8FC7\uFF09` : ""}`);
+    await refresh();
+  });
   const importLocal = () => run(async () => {
+    if (localPath.trim() === "") {
+      setError("\u8BF7\u8F93\u5165\u672C\u673A\u76EE\u5F55\u8DEF\u5F84");
+      return;
+    }
     const result = await apiImport({ type: "local", path: localPath.trim() });
     setNotice(`\u5DF2\u5BFC\u5165 ${result.imported.length} \u4E2A\u6280\u80FD`);
     setLocalPath("");
     await refresh();
-  });
-  const pickLocal = () => run(async () => {
-    if (typeof props.pickDirectory !== "function") {
-      setNotice("\u76EE\u5F55\u9009\u62E9\u5668\u4E0D\u53EF\u7528\uFF1Aworkspaces \u670D\u52A1\u672A\u6302\u8F7D\uFF0C\u8BF7\u76F4\u63A5\u5728\u4E0A\u65B9\u8F93\u5165\u76EE\u5F55\u8DEF\u5F84");
-      return;
-    }
-    const path = await props.pickDirectory();
-    if (path !== null && path !== "") {
-      const result = await apiImport({ type: "local", path });
-      setNotice(`\u5DF2\u5BFC\u5165 ${result.imported.length} \u4E2A\u6280\u80FD`);
-      await refresh();
-    }
   });
   const installRemote = () => run(async () => {
     const parts = remoteInput.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
@@ -377,7 +408,7 @@ function SkillsSettingsSection(props) {
         "div",
         { style: { display: "flex", alignItems: "center", gap: 8 } },
         (0, import_react.createElement)("h2", { style: { margin: 0, fontSize: 18, fontWeight: 600 } }, "Skill \u7BA1\u7406"),
-        busy ? (0, import_react.createElement)(IconRefresh) : null
+        busy ? (0, import_react.createElement)(IconRefresh, { spin: true }) : null
       ),
       (0, import_react.createElement)(
         "button",
@@ -393,6 +424,37 @@ function SkillsSettingsSection(props) {
     ),
     error !== void 0 ? (0, import_react.createElement)("div", { className: "dsh-as-err", role: "alert" }, error) : null,
     notice !== void 0 ? (0, import_react.createElement)("div", { className: "dsh-as-ok", role: "status" }, notice) : null,
+    lastUninstall !== null ? (0, import_react.createElement)(
+      "div",
+      { className: "dsh-as-ok", role: "status", style: { alignItems: "flex-start" } },
+      (0, import_react.createElement)(
+        "div",
+        { style: { display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 } },
+        (0, import_react.createElement)("div", null, lastUninstall.message),
+        (0, import_react.createElement)(
+          "div",
+          { className: "dsh-as-sub", style: { margin: 0 } },
+          "\u624B\u52A8\u6062\u590D\uFF1A\u5C06\u56DE\u6536\u76EE\u5F55\u79FB\u56DE\u5B89\u88C5\u76EE\u5F55\uFF08\u5728\u7EC8\u7AEF\u6267\u884C ",
+          (0, import_react.createElement)("code", { className: "dsh-as-code" }, `mv ${installDir ?? "~/.dsh/skills"}/${lastUninstall.trash} ${installDir ?? "~/.dsh/skills"}/${lastUninstall.name}`),
+          "\uFF09\uFF0C\u6216\u76F4\u63A5\u70B9\u51FB\u300C\u6062\u590D\u300D\u6309\u94AE\u3002"
+        )
+      ),
+      (0, import_react.createElement)("button", {
+        type: "button",
+        className: "dsh-as-btn2 dsh-as-primary",
+        disabled: busy,
+        onClick: () => void restore(lastUninstall),
+        title: `\u6062\u590D ${lastUninstall.name}`
+      }, (0, import_react.createElement)(IconRefresh), "\u6062\u590D"),
+      (0, import_react.createElement)("button", {
+        type: "button",
+        className: "dsh-as-btn2",
+        disabled: busy,
+        onClick: () => setLastUninstall(null),
+        title: "\u5173\u95ED\u63D0\u793A",
+        "aria-label": "\u5173\u95ED\u63D0\u793A"
+      }, "\xD7")
+    ) : null,
     (0, import_react.createElement)(
       "section",
       { className: "dsh-as-card" },
@@ -430,27 +492,73 @@ function SkillsSettingsSection(props) {
       sources === null ? (0, import_react.createElement)("p", { className: "dsh-as-status" }, "\u6B63\u5728\u626B\u63CF\u6765\u6E90\u2026") : (0, import_react.createElement)(
         "div",
         { style: { display: "grid", gap: 8 } },
-        sources.filter((s) => s.exists || s.skills.length > 0).map((group) => (0, import_react.createElement)(
-          "div",
-          { key: group.id, className: "dsh-as-row" },
-          (0, import_react.createElement)(
+        sources.filter((s) => s.exists || s.skills.length > 0).map((group) => {
+          const open = expanded[group.id] === true;
+          return (0, import_react.createElement)(
             "div",
-            { className: "dsh-as-row-main" },
-            (0, import_react.createElement)("div", { className: "dsh-as-row-name" }, group.label),
+            { key: group.id, className: "dsh-as-card-row" + (open ? " dsh-as-row-open" : "") },
             (0, import_react.createElement)(
               "div",
-              { className: "dsh-as-row-desc" },
-              group.skills.length > 0 ? group.skills.map((s) => `${s.name}${s.installed === true ? " \u2713" : ""}`).join("\u3001") : "\u672A\u627E\u5230\u6280\u80FD"
-            )
-          ),
-          (0, import_react.createElement)("button", {
-            type: "button",
-            className: "dsh-as-btn2 dsh-as-primary",
-            disabled: busy || group.skills.length === 0,
-            onClick: () => void importTool(group),
-            title: group.skills.length === 0 ? "\u8BE5\u76EE\u5F55\u4E0B\u6CA1\u6709\u6280\u80FD" : `\u5BFC\u5165 ${group.label} \u7684\u6280\u80FD`
-          }, (0, import_react.createElement)(IconBolt, { size: 12 }), "\u5BFC\u5165")
-        ))
+              {
+                className: "dsh-as-row",
+                style: { cursor: "pointer" },
+                onClick: () => setExpanded((prev) => ({ ...prev, [group.id]: !open })),
+                role: "button",
+                "aria-expanded": open,
+                title: "\u70B9\u51FB\u5C55\u5F00\u67E5\u770B\u6280\u80FD\u8BE6\u60C5"
+              },
+              (0, import_react.createElement)(
+                "div",
+                { className: "dsh-as-row-main" },
+                (0, import_react.createElement)(
+                  "div",
+                  { className: "dsh-as-row-name" },
+                  group.label,
+                  (0, import_react.createElement)("span", { className: "dsh-as-count" }, `${group.skills.length} \u4E2A\u6280\u80FD`)
+                ),
+                (0, import_react.createElement)("div", { className: "dsh-as-row-desc" }, group.path)
+              ),
+              (0, import_react.createElement)("button", {
+                type: "button",
+                className: "dsh-as-btn2 dsh-as-primary",
+                disabled: busy || group.skills.length === 0,
+                onClick: (event) => {
+                  event.stopPropagation();
+                  void importTool(group);
+                },
+                title: group.skills.length === 0 ? "\u8BE5\u76EE\u5F55\u4E0B\u6CA1\u6709\u6280\u80FD" : `\u5BFC\u5165 ${group.label} \u7684\u5168\u90E8 ${group.skills.length} \u4E2A\u6280\u80FD`
+              }, (0, import_react.createElement)(IconBolt, { size: 12 }), "\u5BFC\u5165\u5168\u90E8"),
+              (0, import_react.createElement)("span", { className: "dsh-as-caret", "aria-hidden": true }, open ? "\u25BE" : "\u25B8")
+            ),
+            open ? (0, import_react.createElement)(
+              "div",
+              { className: "dsh-as-skill-list" },
+              group.skills.length === 0 ? (0, import_react.createElement)("div", { className: "dsh-as-status" }, "\u8BE5\u76EE\u5F55\u4E0B\u6CA1\u6709\u6280\u80FD") : group.skills.map((skill) => (0, import_react.createElement)(
+                "div",
+                { key: skill.name, className: "dsh-as-skill-row" },
+                (0, import_react.createElement)(
+                  "div",
+                  { className: "dsh-as-row-main" },
+                  (0, import_react.createElement)(
+                    "div",
+                    { className: "dsh-as-row-name" },
+                    `/${skill.name}`,
+                    skill.installed === true ? (0, import_react.createElement)("span", { className: "dsh-as-installed" }, " \u2713 \u5DF2\u5B89\u88C5") : null
+                  ),
+                  (0, import_react.createElement)("div", { className: "dsh-as-row-desc" }, skill.description || "(\u65E0\u63CF\u8FF0)"),
+                  (0, import_react.createElement)("div", { className: "dsh-as-row-desc" }, skill.path)
+                ),
+                skill.installed === true ? (0, import_react.createElement)("span", { className: "dsh-as-status", style: { flex: "none" } }, "\u5DF2\u5B89\u88C5") : (0, import_react.createElement)("button", {
+                  type: "button",
+                  className: "dsh-as-btn2",
+                  disabled: busy,
+                  onClick: () => void importOne(group, skill),
+                  title: `\u4EC5\u5BFC\u5165 ${skill.name}`
+                }, (0, import_react.createElement)(IconBolt, { size: 12 }), "\u5BFC\u5165")
+              ))
+            ) : null
+          );
+        })
       ),
       (0, import_react.createElement)(
         "div",
@@ -462,13 +570,6 @@ function SkillsSettingsSection(props) {
           placeholder: "\u672C\u673A\u76EE\u5F55\u8DEF\u5F84\uFF08\u542B SKILL.md \u6216\u6280\u80FD\u6587\u4EF6\uFF09",
           "aria-label": "\u672C\u673A\u76EE\u5F55\u8DEF\u5F84"
         }),
-        (0, import_react.createElement)("button", {
-          type: "button",
-          className: "dsh-as-btn2",
-          disabled: busy || typeof props.pickDirectory !== "function",
-          onClick: () => void pickLocal(),
-          title: typeof props.pickDirectory === "function" ? "\u6253\u5F00\u76EE\u5F55\u9009\u62E9\u5668" : "\u76EE\u5F55\u9009\u62E9\u5668\uFF08workspaces \u670D\u52A1\uFF09\u4E0D\u53EF\u7528\uFF0C\u8BF7\u76F4\u63A5\u8F93\u5165\u76EE\u5F55\u8DEF\u5F84"
-        }, "\u9009\u62E9\u76EE\u5F55"),
         (0, import_react.createElement)("button", {
           type: "button",
           className: "dsh-as-btn2 dsh-as-primary",
@@ -496,8 +597,9 @@ function SkillsSettingsSection(props) {
           type: "button",
           className: "dsh-as-btn2 dsh-as-primary",
           disabled: busy || remoteInput.trim() === "",
-          onClick: () => void installRemote()
-        }, "\u5B89\u88C5")
+          onClick: () => void installRemote(),
+          style: { minWidth: 84 }
+        }, busy ? (0, import_react.createElement)(IconRefresh, { size: 12, spin: true }) : null, busy ? "\u5B89\u88C5\u4E2D\u2026" : "\u5B89\u88C5")
       )
     )
   );
@@ -514,7 +616,6 @@ function apply(ctx) {
     console.warn(`[${NS}] slots service unavailable; skipping UI registration`);
     return;
   }
-  const workspaces = ctx.get?.("workspaces");
   ctx.effect?.(
     () => slots.inject(
       "conversation.input.right",
@@ -533,8 +634,7 @@ function apply(ctx) {
           name: "settings.section",
           id: "skills",
           order: 35,
-          label: "Skill \u7BA1\u7406",
-          inject: () => ({ pickDirectory: workspaces?.pickDirectory })
+          label: "Skill \u7BA1\u7406"
         },
         SkillsSettingsSection
       )

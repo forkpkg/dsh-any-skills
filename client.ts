@@ -18,7 +18,7 @@
  */
 import { createElement as h, useCallback, useEffect, useRef, useState } from 'react'
 
-export const inject = ['slots', 'workspaces']
+export const inject = ['slots']
 
 const NS = 'dsh-any-skills'
 const API = '/api/skills'
@@ -69,7 +69,8 @@ const apiList = () => api<{ installDir: string; skills: SkillView[] }>(`${API}/l
 const apiSources = (cwd: string) => api<{ cwd: string; sources: SourceGroup[] }>(`${API}/sources?cwd=${encodeURIComponent(cwd)}`)
 const apiImport = (body: Record<string, unknown>) => api<{ imported: SkillView[]; skipped?: string[] }>(`${API}/import`, { method: 'POST', body: JSON.stringify(body) })
 const apiInstall = (sources: Array<{ type: string; value: string }>) => api<{ results: InstallResult[] }>(`${API}/install`, { method: 'POST', body: JSON.stringify({ sources }) })
-const apiUninstall = (name: string) => api<{ message: string }>(`${API}/uninstall`, { method: 'DELETE', body: JSON.stringify({ name }) })
+const apiUninstall = (name: string) => api<{ message: string; trash?: string }>(`${API}/uninstall`, { method: 'DELETE', body: JSON.stringify({ name }) })
+const apiRestore = (name: string, trash: string) => api<{ message: string }>(`${API}/restore`, { method: 'POST', body: JSON.stringify({ name, trash }) })
 
 /* ---------------- styles ---------------- */
 
@@ -93,6 +94,15 @@ const CSS = [
   '.dsh-as-sub{color:var(--dsw-alias-label-tertiary,#8a94a6);font-size:12.5px;margin:-4px 0 2px}',
   '.dsh-as-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.16));border-radius:10px;min-width:0}',
   '.dsh-as-row-main{flex:1;min-width:0}',
+  '.dsh-as-count{display:inline-flex;align-items:center;margin-left:8px;padding:0 8px;border-radius:999px;background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));color:var(--dsw-alias-label-secondary,#c9d2e0);font-size:11.5px;font-weight:600;vertical-align:2px}',
+  '.dsh-as-caret{color:var(--dsw-alias-label-tertiary,#8a94a6);font-size:12px;flex:none}',
+  '.dsh-as-card-row{display:grid;gap:0;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.16));border-radius:10px;overflow:hidden}',
+  '.dsh-as-card-row .dsh-as-row{border:none;border-radius:0}',
+  '.dsh-as-card-row.dsh-as-row-open .dsh-as-row{background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.06))}',
+  '.dsh-as-skill-list{display:grid;gap:6px;padding:8px 10px 10px;border-top:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.12))}',
+  '.dsh-as-skill-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.12));border-radius:8px;min-width:0}',
+  '.dsh-as-installed{color:var(--dsw-alias-success,#7bdca8);font-size:12px;font-weight:500}',
+  '.dsh-as-code{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));padding:1px 5px;border-radius:4px;word-break:break-all}',
   '.dsh-as-row-name{font-family:var(--ds-font-family-code,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
   '.dsh-as-row-desc{color:var(--dsw-alias-label-tertiary,#8a94a6);font-size:12px;line-height:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
   '.dsh-as-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}',
@@ -145,9 +155,21 @@ function IconTrash(): ReturnType<typeof h> {
     h('path', { d: 'M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z' }))
 }
 
-function IconRefresh(): ReturnType<typeof h> {
-  return h('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true, style: { flex: '0 0 auto' } },
-    h('path', { d: 'M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6' }))
+function IconRefresh(props: { size?: number; spin?: boolean }): ReturnType<typeof h> {
+  return h('svg', {
+    width: props.size ?? 14,
+    height: props.size ?? 14,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    'aria-hidden': true,
+    className: props.spin === true ? 'dsh-as-spin' : undefined,
+    style: { flex: '0 0 auto' },
+  },
+  h('path', { d: 'M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6' }))
 }
 
 /* ---------------- usage ordering (localStorage) ---------------- */
@@ -326,11 +348,13 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> {
 
 /* ---------------- settings section ---------------- */
 
-interface SettingsProps {
-  pickDirectory?: () => Promise<string | null>
+interface UninstallInfo {
+  name: string
+  trash: string
+  message: string
 }
 
-function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
+function SkillsSettingsSection(): ReturnType<typeof h> {
   const [installed, setInstalled] = useState<SkillView[] | null>(null)
   const [installDir, setInstallDir] = useState<string | undefined>(undefined)
   const [sources, setSources] = useState<SourceGroup[] | null>(null)
@@ -340,6 +364,8 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
   const [error, setError] = useState<string | undefined>(undefined)
   const [localPath, setLocalPath] = useState('')
   const [remoteInput, setRemoteInput] = useState('')
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [lastUninstall, setLastUninstall] = useState<UninstallInfo | null>(null)
 
   const refresh = useCallback(async () => {
     setBusy(true)
@@ -377,6 +403,17 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
 
   const uninstall = (name: string) => run(async () => {
     const result = await apiUninstall(name)
+    if (result.trash !== undefined) {
+      setLastUninstall({ name, trash: result.trash, message: result.message })
+    } else {
+      setNotice(result.message)
+    }
+    await refresh()
+  })
+
+  const restore = (info: UninstallInfo) => run(async () => {
+    const result = await apiRestore(info.name, info.trash)
+    setLastUninstall(null)
     setNotice(result.message)
     await refresh()
   })
@@ -387,24 +424,21 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
     await refresh()
   })
 
+  const importOne = (group: SourceGroup, skill: SkillView) => run(async () => {
+    const result = await apiImport({ type: group.tool, sourceId: group.id, names: [skill.name] })
+    setNotice(`已导入 ${result.imported.length} 个技能${result.skipped !== undefined && result.skipped.length > 0 ? `（${result.skipped.length} 个已存在，跳过）` : ''}`)
+    await refresh()
+  })
+
   const importLocal = () => run(async () => {
+    if (localPath.trim() === '') {
+      setError('请输入本机目录路径')
+      return
+    }
     const result = await apiImport({ type: 'local', path: localPath.trim() })
     setNotice(`已导入 ${result.imported.length} 个技能`)
     setLocalPath('')
     await refresh()
-  })
-
-  const pickLocal = () => run(async () => {
-    if (typeof props.pickDirectory !== 'function') {
-      setNotice('目录选择器不可用：workspaces 服务未挂载，请直接在上方输入目录路径')
-      return
-    }
-    const path = await props.pickDirectory()
-    if (path !== null && path !== '') {
-      const result = await apiImport({ type: 'local', path })
-      setNotice(`已导入 ${result.imported.length} 个技能`)
-      await refresh()
-    }
   })
 
   const installRemote = () => run(async () => {
@@ -435,7 +469,7 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
     h('header', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
         h('h2', { style: { margin: 0, fontSize: 18, fontWeight: 600 } }, 'Skill 管理'),
-        busy ? h(IconRefresh) : null,
+        busy ? h(IconRefresh, { spin: true }) : null,
       ),
       h('button', { type: 'button', className: 'dsh-as-btn2', onClick: () => void refresh(), disabled: busy, title: '刷新' },
         h(IconRefresh), '刷新'),
@@ -445,6 +479,32 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
 
     error !== undefined ? h('div', { className: 'dsh-as-err', role: 'alert' }, error) : null,
     notice !== undefined ? h('div', { className: 'dsh-as-ok', role: 'status' }, notice) : null,
+    lastUninstall !== null
+      ? h('div', { className: 'dsh-as-ok', role: 'status', style: { alignItems: 'flex-start' } },
+        h('div', { style: { display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 } },
+          h('div', null, lastUninstall.message),
+          h('div', { className: 'dsh-as-sub', style: { margin: 0 } },
+            '手动恢复：将回收目录移回安装目录（在终端执行 ',
+            h('code', { className: 'dsh-as-code' }, `mv ${installDir ?? '~/.dsh/skills'}/${lastUninstall.trash} ${installDir ?? '~/.dsh/skills'}/${lastUninstall.name}`),
+            '），或直接点击「恢复」按钮。'),
+        ),
+        h('button', {
+          type: 'button',
+          className: 'dsh-as-btn2 dsh-as-primary',
+          disabled: busy,
+          onClick: () => void restore(lastUninstall),
+          title: `恢复 ${lastUninstall.name}`,
+        }, h(IconRefresh), '恢复'),
+        h('button', {
+          type: 'button',
+          className: 'dsh-as-btn2',
+          disabled: busy,
+          onClick: () => setLastUninstall(null),
+          title: '关闭提示',
+          'aria-label': '关闭提示',
+        }, '×'),
+      )
+      : null,
 
     h('section', { className: 'dsh-as-card' },
       h('h3', null, '已安装技能'),
@@ -480,23 +540,63 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
       sources === null
         ? h('p', { className: 'dsh-as-status' }, '正在扫描来源…')
         : h('div', { style: { display: 'grid', gap: 8 } },
-          sources.filter((s) => s.exists || s.skills.length > 0).map((group) => h('div', { key: group.id, className: 'dsh-as-row' },
-            h('div', { className: 'dsh-as-row-main' },
-              h('div', { className: 'dsh-as-row-name' }, group.label),
-              h('div', { className: 'dsh-as-row-desc' },
-                group.skills.length > 0
-                  ? group.skills.map((s) => `${s.name}${s.installed === true ? ' ✓' : ''}`).join('、')
-                  : '未找到技能',
+          sources.filter((s) => s.exists || s.skills.length > 0).map((group) => {
+            const open = expanded[group.id] === true
+            return h('div', { key: group.id, className: 'dsh-as-card-row' + (open ? ' dsh-as-row-open' : '') },
+              h('div', {
+                className: 'dsh-as-row',
+                style: { cursor: 'pointer' },
+                onClick: () => setExpanded((prev) => ({ ...prev, [group.id]: !open })),
+                role: 'button',
+                'aria-expanded': open,
+                title: '点击展开查看技能详情',
+              },
+                h('div', { className: 'dsh-as-row-main' },
+                  h('div', { className: 'dsh-as-row-name' },
+                    group.label,
+                    h('span', { className: 'dsh-as-count' }, `${group.skills.length} 个技能`),
+                  ),
+                  h('div', { className: 'dsh-as-row-desc' }, group.path),
+                ),
+                h('button', {
+                  type: 'button',
+                  className: 'dsh-as-btn2 dsh-as-primary',
+                  disabled: busy || group.skills.length === 0,
+                  onClick: (event: { stopPropagation(): void }) => {
+                    event.stopPropagation()
+                    void importTool(group)
+                  },
+                  title: group.skills.length === 0 ? '该目录下没有技能' : `导入 ${group.label} 的全部 ${group.skills.length} 个技能`,
+                }, h(IconBolt, { size: 12 }), '导入全部'),
+                h('span', { className: 'dsh-as-caret', 'aria-hidden': true }, open ? '▾' : '▸'),
               ),
-            ),
-            h('button', {
-              type: 'button',
-              className: 'dsh-as-btn2 dsh-as-primary',
-              disabled: busy || group.skills.length === 0,
-              onClick: () => void importTool(group),
-              title: group.skills.length === 0 ? '该目录下没有技能' : `导入 ${group.label} 的技能`,
-            }, h(IconBolt, { size: 12 }), '导入'),
-          ))),
+              open
+                ? h('div', { className: 'dsh-as-skill-list' },
+                  group.skills.length === 0
+                    ? h('div', { className: 'dsh-as-status' }, '该目录下没有技能')
+                    : group.skills.map((skill) => h('div', { key: skill.name, className: 'dsh-as-skill-row' },
+                      h('div', { className: 'dsh-as-row-main' },
+                        h('div', { className: 'dsh-as-row-name' },
+                          `/${skill.name}`,
+                          skill.installed === true ? h('span', { className: 'dsh-as-installed' }, ' ✓ 已安装') : null,
+                        ),
+                        h('div', { className: 'dsh-as-row-desc' }, skill.description || '(无描述)'),
+                        h('div', { className: 'dsh-as-row-desc' }, skill.path),
+                      ),
+                      skill.installed === true
+                        ? h('span', { className: 'dsh-as-status', style: { flex: 'none' } }, '已安装')
+                        : h('button', {
+                          type: 'button',
+                          className: 'dsh-as-btn2',
+                          disabled: busy,
+                          onClick: () => void importOne(group, skill),
+                          title: `仅导入 ${skill.name}`,
+                        }, h(IconBolt, { size: 12 }), '导入'),
+                    )),
+                )
+                : null,
+            )
+          })),
       h('div', { className: 'dsh-as-toolbar' },
         h('input', {
           className: 'dsh-as-input',
@@ -505,13 +605,6 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
           placeholder: '本机目录路径（含 SKILL.md 或技能文件）',
           'aria-label': '本机目录路径',
         }),
-        h('button', {
-          type: 'button',
-          className: 'dsh-as-btn2',
-          disabled: busy || typeof props.pickDirectory !== 'function',
-          onClick: () => void pickLocal(),
-          title: typeof props.pickDirectory === 'function' ? '打开目录选择器' : '目录选择器（workspaces 服务）不可用，请直接输入目录路径',
-        }, '选择目录'),
         h('button', {
           type: 'button',
           className: 'dsh-as-btn2 dsh-as-primary',
@@ -537,7 +630,8 @@ function SkillsSettingsSection(props: SettingsProps): ReturnType<typeof h> {
           className: 'dsh-as-btn2 dsh-as-primary',
           disabled: busy || remoteInput.trim() === '',
           onClick: () => void installRemote(),
-        }, '安装'),
+          style: { minWidth: 84 },
+        }, busy ? h(IconRefresh, { size: 12, spin: true }) : null, busy ? '安装中…' : '安装'),
       ),
     ),
   )
@@ -570,8 +664,6 @@ export function apply(ctx: ClientContext): void {
     return
   }
 
-  const workspaces = ctx.get?.('workspaces') as { pickDirectory?: () => Promise<string | null> } | undefined
-
   ctx.effect?.(
     () => slots.inject('conversation.input.right', () =>
       slots.register(
@@ -590,7 +682,6 @@ export function apply(ctx: ClientContext): void {
           id: 'skills',
           order: 35,
           label: 'Skill 管理',
-          inject: () => ({ pickDirectory: workspaces?.pickDirectory }),
         },
         SkillsSettingsSection,
       ),

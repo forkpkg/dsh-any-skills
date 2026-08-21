@@ -177,7 +177,18 @@ async function uninstallSkill(installDir, name2) {
   const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[-:T]/g, "").slice(0, 14);
   const trash = join(installDir, `.trash-${ts}-${name2}`);
   await rename(target, trash);
-  return { ok: true, message: `\u5DF2\u5378\u8F7D ${name2}\uFF08\u79FB\u5165 ${basename(trash)}\uFF0C\u53EF\u624B\u52A8\u6062\u590D\uFF09` };
+  return { ok: true, message: `\u5DF2\u5378\u8F7D ${name2}\uFF08\u79FB\u5165 ${basename(trash)}\uFF0C\u53EF\u624B\u52A8\u6062\u590D\uFF09`, trash: basename(trash) };
+}
+async function restoreSkill(installDir, name2, trash) {
+  if (!isValidSkillName(name2)) return { ok: false, message: `\u975E\u6CD5\u6280\u80FD\u540D: ${name2}` };
+  if (!/^\.trash-\d{14}-[\w.-]+$/.test(trash)) return { ok: false, message: `\u975E\u6CD5\u56DE\u6536\u76EE\u5F55\u540D: ${trash}` };
+  if (!trash.endsWith(`-${name2}`)) return { ok: false, message: `\u56DE\u6536\u76EE\u5F55\u4E0E\u6280\u80FD\u540D\u4E0D\u5339\u914D: ${trash} / ${name2}` };
+  const trashPath = join(installDir, trash);
+  if (!await pathExists(trashPath)) return { ok: false, message: `\u672A\u627E\u5230\u56DE\u6536\u76EE\u5F55: ${trash}` };
+  const target = join(installDir, name2);
+  await rm(target, { recursive: true, force: true });
+  await rename(trashPath, target);
+  return { ok: true, message: `\u5DF2\u6062\u590D ${name2}\uFF08\u4ECE ${trash} \u79FB\u56DE\u5B89\u88C5\u76EE\u5F55\uFF09` };
 }
 async function findProjectRoot(cwd) {
   let current = resolve(cwd);
@@ -524,6 +535,14 @@ async function handleApi(req, res, installDir, token) {
       if (name2 === "") return sendJson(res, 400, { ok: false, message: "name is required" });
       return sendJson(res, 200, await uninstallSkill(installDir, name2));
     }
+    if (req.method === "POST" && pathname === "/api/skills/restore") {
+      if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, message: "untrusted origin" });
+      const body = await readJsonBody(req);
+      const name2 = typeof body?.name === "string" ? body.name.trim() : "";
+      const trash = typeof body?.trash === "string" ? body.trash.trim() : "";
+      if (name2 === "" || trash === "") return sendJson(res, 400, { ok: false, message: "name and trash are required" });
+      return sendJson(res, 200, await restoreSkill(installDir, name2, trash));
+    }
     sendJson(res, 404, { ok: false, message: "not found" });
   } catch (error) {
     sendJson(res, 500, { ok: false, message: errorMessage(error) });
@@ -550,7 +569,9 @@ async function importSkills(body, installDir, token) {
             skipped.push(skill.name);
             continue;
           }
-          imported.push(await installBundleDir(skill.path, installDir));
+          imported.push(
+            skill.kind === "flat" ? await installFlatFile(skill.path, installDir) : await installBundleDir(skill.path, installDir)
+          );
         }
       }
       return { ok: true, imported, ...skipped.length > 0 ? { skipped } : {} };
@@ -660,6 +681,7 @@ export {
   parseNpmSpec,
   parseRepoInput,
   parseSkillText,
+  restoreSkill,
   scanDirectory,
   uninstallSkill
 };

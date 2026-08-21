@@ -15,6 +15,7 @@ import {
   scanDirectory,
   installAllFromRoot,
   uninstallSkill,
+  restoreSkill,
   detectSources,
   installSkillsFromTree,
 } from '../index.js'
@@ -128,8 +129,21 @@ test('installAllFromRoot + listInstalled + uninstall round-trip', async () => {
 
     const uninstall = await uninstallSkill(installDir, 'alpha-skill')
     assert.ok(uninstall.ok)
+    assert.match(uninstall.trash, /^\.trash-\d{14}-alpha-skill$/)
     const after = await scanDirectory(installDir)
     assert.deepEqual(after.map((s) => s.name), ['beta-skill'])
+
+    // restore round-trip
+    const restored = await restoreSkill(installDir, 'alpha-skill', uninstall.trash)
+    assert.ok(restored.ok)
+    const restoredList = await scanDirectory(installDir)
+    assert.deepEqual(restoredList.map((s) => s.name).sort(), ['alpha-skill', 'beta-skill'])
+
+    // restore rejects mismatched / invalid trash
+    const bad = await restoreSkill(installDir, 'alpha-skill', '.trash-20260101000000-nope-skill')
+    assert.equal(bad.ok, false)
+    const bad2 = await restoreSkill(installDir, 'alpha-skill', 'not-a-trash')
+    assert.equal(bad2.ok, false)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
