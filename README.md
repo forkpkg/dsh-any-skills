@@ -154,6 +154,33 @@ dsh-any-skills/
 - [dsh-skill-market](https://github.com/QQ-M/dsh-skill-market) — GitHub tarball 安装到 `~/.dsh/skills`
 - [dsh-skill-picker](https://github.com/a735624258/dsh-skill-picker) — composer 旁可搜索技能选择器
 
+## 常见问题 / FAQ
+
+**导入/安装后模型看不到新技能？**
+
+`~/.dsh/skills` 由 DSH 原生技能提供器（`dsh-skill-filesystem`）自动监听，
+无需重启即可被模型读取；极少数情况下需要等 1–2 秒或在新会话中生效。
+
+**⚡ 按钮不见了？**
+
+设置 → Skill 管理 → 「在对话输入框旁显示 ⚡ 技能选择按钮」被关闭了；打开即可。
+关闭时仍可手动输入 `/技能名` 调用。
+
+**卸载错了，怎么手动恢复？**
+
+卸载会把技能移入 `~/.dsh/skills/.trash-<时间戳>-<名称>`，界面上一键「恢复」即可；
+手动方式：`mv ~/.dsh/skills/.trash-<时间戳>-<名称> ~/.dsh/skills/<名称>`。
+
+**安装时提示 `missing peer @deepseek-ai/cordis` 警告？**
+
+正常现象，所有 dsh 插件一致——cordis 由 DSH 安装自身提供，无需单独安装。
+
+**如何更新插件到最新版？**
+
+```bash
+dsh plugin --profile web update dsh-any-skills
+```
+
 ## License
 
 MIT
