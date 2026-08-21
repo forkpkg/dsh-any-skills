@@ -27,19 +27,23 @@
 ## 安装 / Installation
 
 ```bash
-# 从插件源码目录（本仓库 checkout）安装到 web profile：
+# 从 Git 在线安装（推荐，已实测通过）：
+dsh plugin --profile web add "github:wmengxiang/dsh-any-skills#main"
+```
+
+```bash
+# 或从插件源码目录（本仓库 checkout）安装到 web profile：
 cd dsh-any-skills
 dsh plugin --profile web add .
 # dsh 会自动把带 dsh.bundle 声明的包加入 dsh.profile.bundles 层
 ```
 
-或从 Git 安装：
-
-```bash
-dsh plugin --profile web add "github:wmengxiang/dsh-any-skills#main"
-```
-
 安装后重启 `dsh web` 即可生效。
+
+> **说明**：安装时的 `missing peer @deepseek-ai/cordis@^4.0.1` 警告是正常的 —— 与
+> profile 里其它 dsh 插件（dshmarket、dsh-at-file 等）一致，cordis 由 DSH 安装
+> 自身提供，无需单独安装。`Ignored build scripts: esbuild` 同样无害：仓库已提交
+> 构建产物（`index.js` / `client.js`），`prepare` 的重新构建只是冗余保障。
 
 ## 使用 / Usage
 
