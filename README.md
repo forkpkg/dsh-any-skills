@@ -1,10 +1,10 @@
 # dsh-any-skills
 
-> Import, install, and invoke Agent Skills in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from **Codex / Claude Code / OpenCode / GitHub / npm** - with a ⚡ composer‑side skill picker and a **Skill Management** settings page.
+> Import, install, and invoke Agent Skills in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from **Codex / Claude Code / OpenCode / GitHub / npm** - with a ⚡ composer-side skill picker and a **Skill Management** settings page.
 >
-> Import and install Agent Skills from Codex / Claude Code / OpenCode / GitHub / npm to `~/.dsh/skills`; support one‑click insertion of `/skill‑name` next to the dialog, and provide a comprehensive skill management interface in the settings page.
+> Import and install Agent Skills from Codex / Claude Code / OpenCode / GitHub / npm to `~/.dsh/skills`; support one-click insertion of `/skill-name` next to the dialog, and provide a comprehensive skill management interface in the settings page.
 
-![dsh-plugin](https://img.shields.io/badge/dsh‑plugin-%40deepseek--ai%2Fdsh-blue) ![license](https://img.shields.io/badge/license-MIT-green)
+![dsh-plugin](https://img.shields.io/badge/dsh-plugin-%40deepseek--ai%2Fdsh-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
@@ -12,17 +12,17 @@
   - Codex: `~/.codex/skills`, project `.codex/skills`
   - Claude Code: `~/.claude/skills`, project `.claude/skills`
   - OpenCode: project `.opencode/skills`, `.agents/skills`
-  - GitHub repository: `owner/repo`, HTTPS URL, SSH URL (`git@github.com:…`), Git URL (`ssh://git@github.com/…`)
+  - GitHub repository: `owner/repo`, HTTPS URL, SSH URL (`git@github.com:...`), Git URL (`ssh://git@github.com/...`)
   - Local directory: any directory containing `SKILL.md` or `.md` skill files
 - **Install Skills**
   - GitHub: download codeload tarball and extract (see `dsh-skill-market` implementation, no Git binary required)
   - npm: resolve package tarball via registry API and extract
   - Supports bulk installation (space / comma / semicolon separated)
 - **Invoke in Conversation**
-  - Composer side ⚡ button -> opens searchable skill list -> inserts `/skill‑name` into input
+  - Composer side ⚡ button -> opens searchable skill list -> inserts `/skill-name` into input
 - **Settings Page**: `Settings -> Skill Management` lists installed skills, allows uninstalling, source importing, and GitHub/npm installation
 
-All imported/installed skills are written to `~/.dsh/skills/` (configurable). This is the native skill provider (`dsh-skill-filesystem`) root directory, automatically watched - **no extra registration needed**. The model can read new skills immediately, and the `/skill‑name` gesture is available.
+All imported/installed skills are written to `~/.dsh/skills/` (configurable). This is the native skill provider (`dsh-skill-filesystem`) root directory, automatically watched - **no extra registration needed**. The model can read new skills immediately, and the `/skill-name` gesture is available.
 
 ## Installation
 
@@ -40,7 +40,7 @@ All imported/installed skills are written to `~/.dsh/skills/` (configurable). Th
 
 Restart `dsh web` after installing.
 
-> **Note:** The `missing peer @deepseek‑ai/cordis@^4.0.1` warning during installation is normal - it matches other dsh plugins (dshmarket, dsh‑at‑file, etc.). Cordis is provided by DSH itself; no separate install required. `Ignored build scripts: esbuild` is harmless: the repo is already built.
+> **Note:** The `missing peer @deepseek-ai/cordis@^4.0.1` warning during installation is normal - it matches other dsh plugins (dshmarket, dsh-at-file, etc.). Cordis is provided by DSH itself; no separate install required. `Ignored build scripts: esbuild` is harmless: the repo is already built.
 
 ## Usage
 
@@ -50,31 +50,31 @@ There is a ⚡ button beside the conversation input:
 
 1. Click it to open the skill picker, showing all installed skills in `~/.dsh/skills` (name + description)
 2. Search box filters by name/description, with recent usage priority
-3. Selecting a skill automatically inserts `/skill‑name` with a space into the input; sending the message will load the skill.
+3. Selecting a skill automatically inserts `/skill-name` with a space into the input; sending the message will load the skill.
 
 ### 2. Settings Page Skill Management
 
 `Settings -> Skill Management`:
 
-- **⚡ Button Switch**: enable/disable the ⚡ button next to the conversation input (default on; can still use `/skill‑name` directly when off)
+- **⚡ Button Switch**: enable/disable the ⚡ button next to the conversation input (default on; can still use `/skill-name` directly when off)
 - **Installed Skills**: lists all installed skills, each can be uninstalled (moves to `.trash-\u003ctimestamp\u003e-\u003cname\u003e`, can be restored manually). After uninstalling, the UI shows the trash directory name, a restore button, and a manual `mv` command.
-- **Import**: automatically detects user‑ and project‑level Codex/Claude Code/OpenCode skill directories. Each line shows absolute path and number of skills. Click to expand to view skill details (name/description/path/installed flag). Supports importing all skills at once or a single skill. Also supports importing from a local directory.
+- **Import**: automatically detects user- and project-level Codex/Claude Code/OpenCode skill directories. Each line shows absolute path and number of skills. Click to expand to view skill details (name/description/path/installed flag). Supports importing all skills at once or a single skill. Also supports importing from a local directory.
 - **Install**: input GitHub repository (`owner/repo` or full URL) or npm package name, supports bulk. During installation the button is disabled and shows a loading animation to prevent duplicate actions.
 
 ### 3. HTTP API
 
-The host registers same‑origin JSON APIs on dsh webServer (the browser UI calls these):
+The host registers same-origin JSON APIs on dsh webServer (the browser UI calls these):
 
 | Method | Path | Body | Description |
 | --- | --- | --- | --- |
 | GET | `/api/skills/list` | - | List installed skills |
-| GET | `/api/skills/sources?cwd=…` | - | Detect Codex/Claude/OpenCode importable skills |
+| GET | `/api/skills/sources?cwd=...` | - | Detect Codex/Claude/OpenCode importable skills |
 | POST | `/api/skills/import` | `{type, path?, repository?, sourceId?, cwd?, names?}` | Import (`type: codex/claude/opencode/local/github`; `names` can import specific skills) |
 | POST | `/api/skills/install` | `{sources: [{type: 'github'|'npm', value}]}` | Bulk install |
 | DELETE | `/api/skills/uninstall` | `{name}` | Uninstall (returns `trash` directory name; moves to .trash) |
 | POST | `/api/skills/restore` | `{name, trash}` | Restore from .trash |
 
-Same‑origin checking is applied.
+Same-origin checking is applied.
 
 ## Skill Format
 
@@ -82,21 +82,21 @@ Import requires the same format as the native dsh format:
 
 ```
 \u003cskill-name\u003e/
-└── SKILL.md
+|-- SKILL.md
 ```
 
 `SKILL.md` must start with YAML front matter, at least containing:
 
 ```markdown
 ---
-name: my-skill          # must match ^[a-z0-9]+(?:-[a-z0-9]+)*$ (kebab‑case)
+name: my-skill          # must match ^[a-z0-9]+(?:-[a-z0-9]+)*$ (kebab-case)
 description: One sentence description
 ---
-Skill body …
+Skill body ...
 ```
 
 - Flat format `\u003cskill-name\u003e.md` is also supported.
-- During import, the name is normalized to kebab‑case (uppercase to lowercase, underscore to hyphen, etc.).
+- During import, the name is normalized to kebab-case (uppercase to lowercase, underscore to hyphen, etc.).
 - Optional front matter fields: `whenToUse`, `disable-model-invocation`, `user-invocable`, `metadata`.
 
 ## Configuration
@@ -133,16 +133,16 @@ pnpm build            # esbuild: index.js (Host ESM) + client.js (Client CJS + _
 
 ```
 dsh-any-skills/
-├── package.json          # dsh.bundle.patch + dsh.client declaration
-├── cordis.patch.yml      # patch insertion of plugin line
-├── cordis.dev.yml        # dev overlay
-├── build.mjs             # esbuild build script
-├── index.ts              # Host: /api/skills/* routes + skill management logic
-├── client.ts             # Client: ⚡ button + skill picker + Skill Management UI
-├── src/
-│   ├── skills.ts         # core: front matter parsing, name normalization, scan/copy/uninstall
-│   └── remote.ts         # GitHub/npm tarball parsing & installation
-└── test/                 # node:test unit tests
+|-- package.json          # dsh.bundle.patch + dsh.client declaration
+|-- cordis.patch.yml      # patch insertion of plugin line
+|-- cordis.dev.yml        # dev overlay
+|-- build.mjs             # esbuild build script
+|-- index.ts              # Host: /api/skills/* routes + skill management logic
+|-- client.ts             # Client: ⚡ button + skill picker + Skill Management UI
+|-- src/
+|   |-- skills.ts         # core: front matter parsing, name normalization, scan/copy/uninstall
+|   |-- remote.ts         # GitHub/npm tarball parsing & installation
+|-- test/                 # node:test unit tests
 ```
 
 ## Reference Implementations
@@ -161,7 +161,7 @@ dsh-any-skills/
 
 `Settings -> Skill Management -> Show ⚡ button next to the conversation input` was turned off; toggle it on.
 
-When off, you can still manually call skills with `/skill‑name`.
+When off, you can still manually call skills with `/skill-name`.
 
 **Accidentally uninstalled a skill? How to recover?**
 
@@ -171,9 +171,9 @@ The skill moves to `~/.dsh/skills/.trash-\u003ctimestamp\u003e-\u003cname\u003e`
 mv ~/.dsh/skills/.trash-\u003ctimestamp\u003e-\u003cname\u003e ~/.dsh/skills/\u003cname\u003e
 ```
 
-**`missing peer @deepseek‑ai/cordis` warning on install?**
+**`missing peer @deepseek-ai/cordis` warning on install?**
 
-It’s normal; all dsh plugins share this. Cordis is bundled by DSH itself; no separate install needed.
+It's normal; all dsh plugins share this. Cordis is bundled by DSH itself; no separate install needed.
 
 **How to update the plugin to the latest version?**
 

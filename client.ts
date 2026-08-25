@@ -1,16 +1,16 @@
 /**
- * dsh-any-skills — browser half.
+ * dsh-any-skills - browser half.
  *
  * Two Slot contributions:
  *
- *  1. `conversation.input.right` — a button beside the composer (before the
+ *  1. `conversation.input.right` - a button beside the composer (before the
  *     send button). Clicking it opens a searchable popover of every installed
  *     skill (fetched from the host route /api/skills/list); picking one
  *     inserts the native `/skill-name` gesture into the draft **at the current
  *     caret position** (falling back to the end when the caret is unknown)
  *     via `inputActions.setDraft`, so the skill loads with the message.
  *
- *  2. `settings.section` — a "Skill Management" settings page: installed list with
+ *  2. `settings.section` - a "Skill Management" settings page: installed list with
  *     uninstall, import from Codex / Claude Code / OpenCode and local
  *     directories, and batch install from GitHub / npm.
  *
@@ -268,10 +268,10 @@ export interface InsertDraftResult {
 }
 
 /**
- * 把 `/name ` 命令插入 draft：
- *  - 无 range（或 start < 0）：追加到末尾（保持旧行为）；
- *  - 有 range：在 start 处插入并替换 [start, end) 选区，光标落到命令之后；
- *  - 分隔：仅在需要处补一个空格，命令后跟一个空格（suffix 以空格开头则不重复）。
+ * Put `/name` command into the draft:
+ *  - No range (or start < 0): append to the end (keep old behavior);
+ *  - With range: insert at start and replace [start, end) selection, cursor after command;
+ *  - Separator: add one space only if needed, command followed by a space (suffix starting with space won't duplicate).
  */
 export function buildInsertedDraft(draft: string, name: string, range?: DraftRange): InsertDraftResult {
   if (range === undefined || range.start < 0) {
@@ -291,9 +291,9 @@ export function buildInsertedDraft(draft: string, name: string, range?: DraftRan
 }
 
 /**
- * 从 picker 按钮向上查找 composer 的 textarea：
- * 按钮与输入卡片是兄弟关系，需逐级上升，直到某个祖先包含
- * `[data-composer-card]`，再取其中唯一的 textarea。
+ * Search upwards from the picker button to find the composer textarea:
+ * The button and input card are siblings; need to ascend level by level until a parent contains
+ * `[data-composer-card]`, then take the unique textarea inside it.
  */
 function findComposerTextarea(box: HTMLElement | null): HTMLTextAreaElement | null {
   let el: HTMLElement | null = box
@@ -328,10 +328,10 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<Record<string, UsageEntry>>(() => loadUsage())
   const boxRef = useRef<HTMLDivElement | null>(null)
-  /** 用户是否曾聚焦过 composer textarea：从未聚焦时 selectionStart 恒为 0，应回退为追加到末尾 */
+  /** Have we ever focused on the composer textarea? If never focused, selectionStart is always 0, should fallback to appending at the end */
   const taEverFocusedRef = useRef(false)
 
-  // 跟踪 composer textarea 的聚焦状态（失焦后 selectionStart 仍保留，随时可读光标）
+  // Track the focus state of the composer textarea (after blurring, selectionStart remains, can read cursor anytime)
   useEffect(() => {
     const onFocusIn = (event: FocusEvent) => {
       try {
@@ -364,7 +364,7 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
   }, [skills, error])
 
   const toggle = () => {
-    if (!open) void load(true) // 每次打开都重新拉取，Import新技能后立即可见
+    if (!open) void load(true) // Pull again each time opened, new skills visible immediately after import
     setOpen((value) => !value)
   }
 
@@ -381,7 +381,7 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
       }
     }
 
-    // 光标已知（用户曾聚焦输入框、DOM 值与快照一致）时插入到光标处；否则回退为追加到末尾
+    // If cursor known (user had focused input box, DOM value matches snapshot), insert at cursor; otherwise fallback to append at the end
     let range: DraftRange | undefined
     try {
       const ta = findComposerTextarea(boxRef.current)
@@ -407,14 +407,14 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
       console.error(`[${NS}] setDraft failed:`, cause)
     }
 
-    // 焦点还给输入框，光标落到插入内容之后（受控组件重渲染后再设置选区）
+    // Refocus on the input box, cursor after inserted content (set selection after controlled component re-renders)
     try {
       const ta = findComposerTextarea(boxRef.current)
       if (ta !== null && typeof requestAnimationFrame === 'function') {
         requestAnimationFrame(() => {
           try {
             ta.focus()
-            // 受控组件可能尚未提交新值：值一致时才设置光标，避免被 clamp
+            // The controlled component may not have submitted a new value yet: set cursor only when values match to avoid clamping.
             if (ta.value === text) ta.setSelectionRange(caret, caret)
           } catch {
             /* ignore */
@@ -455,7 +455,7 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
     .filter((skill) => q === '' || skill.name.toLowerCase().includes(q) || String(skill.description ?? '').toLowerCase().includes(q))
     .slice(0, 80)
 
-  if (!enabled) return null // 设置页关闭了 ⚡ 按钮入口
+  if (!enabled) return null // Skill Picker button is hidden in the settings page
 
   return h('div', { ref: boxRef, style: { position: 'relative', display: 'inline-flex', flex: 'none' } },
     h('button', {
@@ -473,7 +473,7 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
           style: { margin: 0, flex: 1 },
           value: query,
           onChange: (event: { currentTarget: { value: string } }) => setQuery(event.currentTarget.value),
-          placeholder: 'Search skills…',
+          placeholder: 'Search skills...',
           autoFocus: true,
         }),
         h('button', {
@@ -487,7 +487,7 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
       error !== undefined
         ? h('div', { className: 'dsh-as-status' }, `Load failed: ${error}`)
         : skills === undefined
-          ? h('div', { className: 'dsh-as-status' }, 'Loading…')
+          ? h('div', { className: 'dsh-as-status' }, 'Loading...')
           : h('div', { className: 'dsh-as-list' },
             filtered.length === 0
               ? h('div', { className: 'dsh-as-status' }, skills.length === 0 ? 'No skills installed. Go to Settings - Skill Management to import.' : 'No matching skills')
@@ -622,7 +622,7 @@ function SkillsSettingsSection(): ReturnType<typeof h> {
         : 'Install complete',
     )
     if (failed.length > 0) {
-      setError(failed.map((f) => `${f.source}: ${f.message}`).join('；'))
+      setError(failed.map((f) => `${f.source}: ${f.message}`).join(';'))
     } else {
       setError(undefined)
     }
@@ -667,7 +667,7 @@ function SkillsSettingsSection(): ReturnType<typeof h> {
           onClick: () => setLastUninstall(null),
           title: 'Close notification',
           'aria-label': 'Close notification',
-        }, '×'),
+        }, 'x'),
       )
       : null,
 
@@ -689,9 +689,9 @@ function SkillsSettingsSection(): ReturnType<typeof h> {
 
     h('section', { className: 'dsh-as-card' },
       h('h3', null, 'Installed Skills'),
-      h('p', { className: 'dsh-as-sub' }, `Installation Directory:${installDir ?? '…'}`),
+      h('p', { className: 'dsh-as-sub' }, `Installation Directory:${installDir ?? '...'}`),
       installed === null
-        ? h('p', { className: 'dsh-as-status' }, 'Loading…')
+        ? h('p', { className: 'dsh-as-status' }, 'Loading...')
         : installed.length === 0
           ? h('p', { className: 'dsh-as-status' }, 'No skills installed yet.')
           : h('div', { style: { display: 'grid', gap: 8 } },
@@ -719,7 +719,7 @@ function SkillsSettingsSection(): ReturnType<typeof h> {
         ? h('p', { className: 'dsh-as-sub' }, `Project-level directory based on service start directory: ${srcCwd}`)
         : null,
       sources === null
-        ? h('p', { className: 'dsh-as-status' }, 'Scanning sources…')
+        ? h('p', { className: 'dsh-as-status' }, 'Scanning sources...')
         : h('div', { style: { display: 'grid', gap: 8 } },
           sources.filter((s) => s.exists || s.skills.length > 0).map((group) => {
             const open = expanded[group.id] === true
@@ -748,8 +748,8 @@ function SkillsSettingsSection(): ReturnType<typeof h> {
                     void importTool(group)
                   },
                   title: group.skills.length === 0 ? 'No skills in this directory' : `Import all ${group.skills.length} skills from ${group.label}`,
-                }, h(IconBolt, { size: 12 }), 'Import全部'),
-                h('span', { className: 'dsh-as-caret', 'aria-hidden': true }, open ? '▾' : '▸'),
+                }, h(IconBolt, { size: 12 }), 'Import All'),
+                h('span', { className: 'dsh-as-caret', 'aria-hidden': true }, open ? 'v' : '>'),
               ),
               open
                 ? h('div', { className: 'dsh-as-skill-list' },
@@ -812,7 +812,7 @@ function SkillsSettingsSection(): ReturnType<typeof h> {
           disabled: busy || remoteInput.trim() === '',
           onClick: () => void installRemote(),
           style: { minWidth: 84 },
-        }, busy ? h(IconRefresh, { size: 12, spin: true }) : null, busy ? 'Installing…' : 'Install'),
+        }, busy ? h(IconRefresh, { size: 12, spin: true }) : null, busy ? 'Installing...' : 'Install'),
       ),
     ),
   )

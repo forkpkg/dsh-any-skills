@@ -1,11 +1,11 @@
 /**
- * dsh-any-skills — build script.
+ * dsh-any-skills - build script.
  *
  * Host half (index.js): plain Node ESM, externalizing @deepseek-ai/dsh-* and
  * cordis (provided by the DSH installation / profile node_modules).
  *
  * Client half (client.js): a single CJS bundle wrapped in the ModuleLoader
- * handshake — the web shell serves exactly one file per plugin
+ * handshake - the web shell serves exactly one file per plugin
  * (/plugins/dsh-any-skills/client.js) and REQUIRES the bundle to register
  * itself via `window.__ModuleLoader__.load({ id, factory })`. Without this the
  * shell fails the whole boot with:

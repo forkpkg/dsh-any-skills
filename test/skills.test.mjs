@@ -1,5 +1,5 @@
 /**
- * dsh-any-skills — unit tests for the core logic (run against the built
+ * dsh-any-skills - unit tests for the core logic (run against the built
  * index.js bundle: `pnpm test`).
  */
 import { test } from 'node:test'

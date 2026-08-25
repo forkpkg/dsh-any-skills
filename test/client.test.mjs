@@ -1,5 +1,5 @@
 /**
- * dsh-any-skills — client bundle handshake test.
+ * dsh-any-skills - client bundle handshake test.
  *
  * Loads the built lib client.js in a Node vm sandbox with a stub
  * `window.__ModuleLoader__`, invokes the factory with a fake `require("react")`,
@@ -69,7 +69,7 @@ test('client bundle: registers composer picker + settings section', () => {
   const ctx = {
     slots: fakeSlots,
     get() {
-      return undefined // no workspaces service — the settings page must not depend on it
+      return undefined // no workspaces service - the settings page must not depend on it
     },
     effect(callback) {
       // real Cordis runs the effect body immediately

@@ -1,5 +1,5 @@
 /**
- * dsh-any-skills — host half.
+ * dsh-any-skills - host half.
  *
  * Registers a same-origin JSON API on the DSH webServer:
  *
@@ -9,7 +9,7 @@
  *   POST   /api/skills/install     -> { sources: [{ type: 'github'|'npm', value }] }  (batch)
  *   DELETE /api/skills/uninstall   -> { name }  (moves the skill into .trash-*)
  *
- * Skills land in the configured installDir (default ~/.dsh/skills — the
+ * Skills land in the configured installDir (default ~/.dsh/skills - the
  * `user-dsh` root of the native skill provider, watched automatically), so
  * imported skills become visible to the model and to the native
  * `/skill-name` invocation without extra registration.
@@ -165,7 +165,7 @@ interface ImportBody {
   sourceId?: unknown
 }
 
-/** POST /api/skills/import — copy skills from a detected source, a local dir, or a GitHub repo. */
+/** POST /api/skills/import - copy skills from a detected source, a local dir, or a GitHub repo. */
 async function importSkills(
   body: ImportBody,
   installDir: string,
@@ -228,7 +228,7 @@ async function importSkills(
   }
 }
 
-/** POST /api/skills/install — batch install from GitHub / npm. */
+/** POST /api/skills/install - batch install from GitHub / npm. */
 async function installRemote(body: { sources?: unknown }, installDir: string, token: string): Promise<{ ok: boolean; results: unknown[] }> {
   const sources = Array.isArray(body?.sources) ? body.sources : []
   if (sources.length === 0) {

@@ -1,4 +1,4 @@
-# dsh-any-skills dev overlay — apply with `dsh web --patch ./cordis.dev.yml`
+# dsh-any-skills dev overlay - apply with `dsh web --patch ./cordis.dev.yml`
 # (or `dsh --profile web --patch ./cordis.dev.yml`) for local development
 # before the plugin is installed into the profile. The row resolves from the
 # profile node_modules, so first install the checkout once with
