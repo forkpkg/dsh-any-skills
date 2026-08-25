@@ -22,6 +22,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var client_exports = {};
 __export(client_exports, {
   apply: () => apply,
+  buildInsertedDraft: () => buildInsertedDraft,
   inject: () => inject
 });
 module.exports = __toCommonJS(client_exports);
@@ -209,6 +210,38 @@ function rankByUsage(skills, usage) {
     return a.name.localeCompare(b.name);
   });
 }
+function buildInsertedDraft(draft, name, range) {
+  if (range === void 0 || range.start < 0) {
+    const sep = draft === "" || draft.endsWith(" ") || draft.endsWith("\n") ? "" : " ";
+    const text2 = `${draft}${sep}/${name} `;
+    return { text: text2, caret: text2.length };
+  }
+  const start = Math.min(range.start, draft.length);
+  const end = range.end > start ? Math.min(range.end, draft.length) : start;
+  const prefix = draft.slice(0, start);
+  const suffix = draft.slice(end);
+  const sepBefore = prefix === "" || prefix.endsWith(" ") || prefix.endsWith("\n") ? "" : " ";
+  const sepAfter = suffix === "" ? " " : suffix.startsWith(" ") || suffix.startsWith("\n") ? "" : " ";
+  const text = `${prefix}${sepBefore}/${name}${sepAfter}${suffix}`;
+  const caret = start + sepBefore.length + 1 + name.length + sepAfter.length;
+  return { text, caret };
+}
+function findComposerTextarea(box) {
+  let el = box;
+  while (el !== null) {
+    try {
+      const card = el.querySelector("[data-composer-card]");
+      if (card !== null) {
+        const ta = card.querySelector("textarea");
+        return ta instanceof HTMLTextAreaElement ? ta : null;
+      }
+    } catch {
+      return null;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
 function SkillPickerButton(props) {
   const [enabled, setEnabled] = (0, import_react.useState)(() => isPickerEnabled());
   (0, import_react.useEffect)(() => subscribePickerEnabled(() => setEnabled(isPickerEnabled())), []);
@@ -218,6 +251,19 @@ function SkillPickerButton(props) {
   const [query, setQuery] = (0, import_react.useState)("");
   const [usage, setUsage] = (0, import_react.useState)(() => loadUsage());
   const boxRef = (0, import_react.useRef)(null);
+  const taEverFocusedRef = (0, import_react.useRef)(false);
+  (0, import_react.useEffect)(() => {
+    const onFocusIn = (event) => {
+      try {
+        if (event.target instanceof HTMLTextAreaElement && event.target === findComposerTextarea(boxRef.current)) {
+          taEverFocusedRef.current = true;
+        }
+      } catch {
+      }
+    };
+    document.addEventListener("focusin", onFocusIn);
+    return () => document.removeEventListener("focusin", onFocusIn);
+  }, []);
   const load = (0, import_react.useCallback)(async (force = false) => {
     if (!force && (skills !== void 0 || error !== void 0)) return;
     if (force) {
@@ -246,16 +292,40 @@ function SkillPickerButton(props) {
       } catch {
       }
     }
-    const separator = draft === "" || draft.endsWith(" ") || draft.endsWith("\n") ? "" : " ";
-    const next = `${draft}${separator}/${name} `;
+    let range;
+    try {
+      const ta = findComposerTextarea(boxRef.current);
+      if (ta !== null && ta.value === draft && taEverFocusedRef.current) {
+        const start = ta.selectionStart;
+        if (start >= 0) {
+          const end = ta.selectionEnd > start ? ta.selectionEnd : start;
+          range = { start, end };
+        }
+      }
+    } catch {
+    }
+    const { text, caret } = buildInsertedDraft(draft, name, range);
     try {
       if (typeof props.inputActions?.setDraft === "function") {
-        props.inputActions.setDraft(next);
+        props.inputActions.setDraft(text);
       } else {
-        console.warn(`[${NS}] inputActions.setDraft unavailable; draft not written:`, next);
+        console.warn(`[${NS}] inputActions.setDraft unavailable; draft not written:`, text);
       }
     } catch (cause) {
       console.error(`[${NS}] setDraft failed:`, cause);
+    }
+    try {
+      const ta = findComposerTextarea(boxRef.current);
+      if (ta !== null && typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => {
+          try {
+            ta.focus();
+            ta.setSelectionRange(caret, caret);
+          } catch {
+          }
+        });
+      }
+    } catch {
     }
     const nextUsage = { ...usage, [name]: { count: (usage[name]?.count ?? 0) + 1, lastUsed: Date.now() } };
     setUsage(nextUsage);

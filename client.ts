@@ -6,8 +6,9 @@
  *  1. `conversation.input.right` — a button beside the composer (before the
  *     send button). Clicking it opens a searchable popover of every installed
  *     skill (fetched from the host route /api/skills/list); picking one
- *     inserts the native `/skill-name` gesture into the draft via
- *     `inputActions.setDraft`, so the skill loads with the message.
+ *     inserts the native `/skill-name` gesture into the draft **at the current
+ *     caret position** (falling back to the end when the caret is unknown)
+ *     via `inputActions.setDraft`, so the skill loads with the message.
  *
  *  2. `settings.section` — a "Skill 管理" settings page: installed list with
  *     uninstall, import from Codex / Claude Code / OpenCode and local
@@ -253,6 +254,64 @@ function rankByUsage(skills: SkillView[], usage: Record<string, UsageEntry>): Sk
 
 /* ---------------- composer picker button ---------------- */
 
+/** 光标/选区范围（相对于 draft 字符串的 UTF-16 码元偏移）。 */
+export interface DraftRange {
+  start: number
+  end: number
+}
+
+export interface InsertDraftResult {
+  /** 写入发送框的完整新 draft。 */
+  text: string
+  /** 插入完成后光标应停留的位置（text 内的偏移）。 */
+  caret: number
+}
+
+/**
+ * 把 `/name ` 命令插入 draft：
+ *  - 无 range（或 start < 0）：追加到末尾（保持旧行为）；
+ *  - 有 range：在 start 处插入并替换 [start, end) 选区，光标落到命令之后；
+ *  - 分隔：仅在需要处补一个空格，命令后跟一个空格（suffix 以空格开头则不重复）。
+ */
+export function buildInsertedDraft(draft: string, name: string, range?: DraftRange): InsertDraftResult {
+  if (range === undefined || range.start < 0) {
+    const sep = draft === '' || draft.endsWith(' ') || draft.endsWith('\n') ? '' : ' '
+    const text = `${draft}${sep}/${name} `
+    return { text, caret: text.length }
+  }
+  const start = Math.min(range.start, draft.length)
+  const end = range.end > start ? Math.min(range.end, draft.length) : start
+  const prefix = draft.slice(0, start)
+  const suffix = draft.slice(end)
+  const sepBefore = prefix === '' || prefix.endsWith(' ') || prefix.endsWith('\n') ? '' : ' '
+  const sepAfter = suffix === '' ? ' ' : suffix.startsWith(' ') || suffix.startsWith('\n') ? '' : ' '
+  const text = `${prefix}${sepBefore}/${name}${sepAfter}${suffix}`
+  const caret = start + sepBefore.length + 1 + name.length + sepAfter.length
+  return { text, caret }
+}
+
+/**
+ * 从 picker 按钮向上查找 composer 的 textarea：
+ * 按钮与输入卡片是兄弟关系，需逐级上升，直到某个祖先包含
+ * `[data-composer-card]`，再取其中唯一的 textarea。
+ */
+function findComposerTextarea(box: HTMLElement | null): HTMLTextAreaElement | null {
+  let el: HTMLElement | null = box
+  while (el !== null) {
+    try {
+      const card = el.querySelector('[data-composer-card]')
+      if (card !== null) {
+        const ta = card.querySelector('textarea')
+        return ta instanceof HTMLTextAreaElement ? ta : null
+      }
+    } catch {
+      return null
+    }
+    el = el.parentElement
+  }
+  return null
+}
+
 interface PickerProps {
   session?: { sessionId?: string }
   input?: { draft?: string }
@@ -269,6 +328,26 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<Record<string, UsageEntry>>(() => loadUsage())
   const boxRef = useRef<HTMLDivElement | null>(null)
+  /** 用户是否曾聚焦过 composer textarea：从未聚焦时 selectionStart 恒为 0，应回退为追加到末尾 */
+  const taEverFocusedRef = useRef(false)
+
+  // 跟踪 composer textarea 的聚焦状态（失焦后 selectionStart 仍保留，随时可读光标）
+  useEffect(() => {
+    const onFocusIn = (event: FocusEvent) => {
+      try {
+        if (
+          event.target instanceof HTMLTextAreaElement &&
+          event.target === findComposerTextarea(boxRef.current)
+        ) {
+          taEverFocusedRef.current = true
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    document.addEventListener('focusin', onFocusIn)
+    return () => document.removeEventListener('focusin', onFocusIn)
+  }, [])
 
   const load = useCallback(async (force = false) => {
     if (!force && (skills !== undefined || error !== undefined)) return
@@ -301,16 +380,48 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
         /* ignore */
       }
     }
-    const separator = draft === '' || draft.endsWith(' ') || draft.endsWith('\n') ? '' : ' '
-    const next = `${draft}${separator}/${name} `
+
+    // 光标已知（用户曾聚焦输入框、DOM 值与快照一致）时插入到光标处；否则回退为追加到末尾
+    let range: DraftRange | undefined
+    try {
+      const ta = findComposerTextarea(boxRef.current)
+      if (ta !== null && ta.value === draft && taEverFocusedRef.current) {
+        const start = ta.selectionStart
+        if (start >= 0) {
+          const end = ta.selectionEnd > start ? ta.selectionEnd : start
+          range = { start, end }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    const { text, caret } = buildInsertedDraft(draft, name, range)
+
     try {
       if (typeof props.inputActions?.setDraft === 'function') {
-        props.inputActions.setDraft(next)
+        props.inputActions.setDraft(text)
       } else {
-        console.warn(`[${NS}] inputActions.setDraft unavailable; draft not written:`, next)
+        console.warn(`[${NS}] inputActions.setDraft unavailable; draft not written:`, text)
       }
     } catch (cause) {
       console.error(`[${NS}] setDraft failed:`, cause)
+    }
+
+    // 焦点还给输入框，光标落到插入内容之后（受控组件重渲染后再设置选区）
+    try {
+      const ta = findComposerTextarea(boxRef.current)
+      if (ta !== null && typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => {
+          try {
+            ta.focus()
+            ta.setSelectionRange(caret, caret)
+          } catch {
+            /* ignore */
+          }
+        })
+      }
+    } catch {
+      /* ignore */
     }
 
     const nextUsage = { ...usage, [name]: { count: (usage[name]?.count ?? 0) + 1, lastUsed: Date.now() } }

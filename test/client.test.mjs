@@ -147,6 +147,27 @@ test('client bundle: picker respects the show-picker preference', () => {
   assert.equal(composer2.component({}), null, 'picker hidden when disabled')
 })
 
+test('client bundle: buildInsertedDraft appends at end when no caret range', () => {
+  const { buildInsertedDraft } = loadClientBundle()
+  // vm realm 对象原型不同，strict deepEqual 不可用，逐字段断言
+  assert.deepEqual({ ...buildInsertedDraft('hello', 'git') }, { text: 'hello /git ', caret: 11 })
+  assert.deepEqual({ ...buildInsertedDraft('', 'git') }, { text: '/git ', caret: 5 })
+  assert.deepEqual({ ...buildInsertedDraft('hello ', 'git') }, { text: 'hello /git ', caret: 11 })
+  assert.deepEqual({ ...buildInsertedDraft('hello\n', 'git') }, { text: 'hello\n/git ', caret: 11 })
+})
+
+test('client bundle: buildInsertedDraft inserts at the caret position', () => {
+  const { buildInsertedDraft } = loadClientBundle()
+  assert.deepEqual({ ...buildInsertedDraft('hello world', 'git', { start: 5, end: 5 }) }, { text: 'hello /git world', caret: 10 })
+  assert.deepEqual({ ...buildInsertedDraft('hello', 'git', { start: 0, end: 0 }) }, { text: '/git hello', caret: 5 })
+  assert.deepEqual({ ...buildInsertedDraft('a\nb', 'git', { start: 2, end: 2 }) }, { text: 'a\n/git b', caret: 7 })
+})
+
+test('client bundle: buildInsertedDraft replaces the selected range', () => {
+  const { buildInsertedDraft } = loadClientBundle()
+  assert.deepEqual({ ...buildInsertedDraft('hello world', 'git', { start: 6, end: 11 }) }, { text: 'hello /git ', caret: 11 })
+})
+
 test('client bundle: apply tolerates missing slots', () => {
   const { apply } = loadClientBundle()
   assert.doesNotThrow(() => apply({ slots: undefined, get: () => undefined }))
