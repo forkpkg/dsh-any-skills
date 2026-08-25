@@ -1,5 +1,5 @@
 /**
- * dsh-any-skills — remote install from GitHub and npm.
+ * dsh-any-skills - remote install from GitHub and npm.
  *
  * GitHub: accepts `owner/repo`, HTTPS URL, SSH URL (`git@github.com:o/r.git`)
  * and `ssh://` forms; resolves to the codeload tarball, extracts it and

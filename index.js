@@ -623,7 +623,7 @@ async function installRemote(body, installDir, token) {
         if (value === "") throw new Error("npm source requires a value");
         results.push({ source: value, ok: true, ...await installFromNpm(value, installDir) });
       } else {
-        results.push({ source: value || String(record.type ?? ""), ok: false, message: `\u672A\u77E5\u7684\u5B89\u88C5\u7C7B\u578B: ${type}` });
+        results.push({ source: value || String(record.type ?? ""), ok: false, message: `Unknown installation type: ${type}` });
       }
     } catch (error) {
       results.push({ source: value || String(record.type ?? ""), ok: false, message: errorMessage(error) });

@@ -1,5 +1,5 @@
 /**
- * dsh-any-skills — client bundle handshake test.
+ * dsh-any-skills - client bundle handshake test.
  *
  * Loads the built lib client.js in a Node vm sandbox with a stub
  * `window.__ModuleLoader__`, invokes the factory with a fake `require("react")`,
@@ -69,7 +69,7 @@ test('client bundle: registers composer picker + settings section', () => {
   const ctx = {
     slots: fakeSlots,
     get() {
-      return undefined // no workspaces service — the settings page must not depend on it
+      return undefined // no workspaces service - the settings page must not depend on it
     },
     effect(callback) {
       // real Cordis runs the effect body immediately
@@ -91,7 +91,7 @@ test('client bundle: registers composer picker + settings section', () => {
   const settings = registrations.find((r) => r.key === 'settings.section')
   const settingsRendered = settings.callback()
   assert.equal(settingsRendered.opts.id, 'skills')
-  assert.equal(settingsRendered.opts.label, 'Skill 管理')
+  assert.equal(settingsRendered.opts.label, 'Skill Management')
   // no directory-picker inject anymore (scheme A: no native picker entry)
   assert.equal(settingsRendered.opts.inject, undefined)
 
@@ -149,7 +149,7 @@ test('client bundle: picker respects the show-picker preference', () => {
 
 test('client bundle: buildInsertedDraft appends at end when no caret range', () => {
   const { buildInsertedDraft } = loadClientBundle()
-  // vm realm 对象原型不同，strict deepEqual 不可用，逐字段断言
+  // vm realm object prototype differs, strict deepEqual not usable, field-by-field assertion
   assert.deepEqual({ ...buildInsertedDraft('hello', 'git') }, { text: 'hello /git ', caret: 11 })
   assert.deepEqual({ ...buildInsertedDraft('', 'git') }, { text: '/git ', caret: 5 })
   assert.deepEqual({ ...buildInsertedDraft('hello ', 'git') }, { text: 'hello /git ', caret: 11 })

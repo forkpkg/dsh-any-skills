@@ -1,5 +1,5 @@
 /**
- * dsh-any-skills — host API smoke test: boots `apply()` against an in-process
+ * dsh-any-skills - host API smoke test: boots `apply()` against an in-process
  * fake webServer and exercises list / sources / import / uninstall over real
  * HTTP request/response objects (node:http streams).
  */
