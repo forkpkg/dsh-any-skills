@@ -171,24 +171,24 @@ async function installAllFromRoot(root, installDir) {
   return installed;
 }
 async function uninstallSkill(installDir, name2) {
-  if (!/^[\w.-]+$/.test(name2)) return { ok: false, message: `\u975E\u6CD5\u6280\u80FD\u540D: ${name2}` };
+  if (!/^[\w.-]+$/.test(name2)) return { ok: false, message: `Invalid skill name: ${name2}` };
   const target = join(installDir, name2);
-  if (!await pathExists(target)) return { ok: false, message: `\u672A\u627E\u5230\u5DF2\u5B89\u88C5\u7684\u6280\u80FD: ${name2}` };
+  if (!await pathExists(target)) return { ok: false, message: `No installed skill found: ${name2}` };
   const ts = (/* @__PURE__ */ new Date()).toISOString().replace(/[-:T]/g, "").slice(0, 14);
   const trash = join(installDir, `.trash-${ts}-${name2}`);
   await rename(target, trash);
-  return { ok: true, message: `\u5DF2\u5378\u8F7D ${name2}\uFF08\u79FB\u5165 ${basename(trash)}\uFF0C\u53EF\u624B\u52A8\u6062\u590D\uFF09`, trash: basename(trash) };
+  return { ok: true, message: `Uninstalled ${name2} (moved to ${basename(trash)}, can be restored manually)`, trash: basename(trash) };
 }
 async function restoreSkill(installDir, name2, trash) {
-  if (!isValidSkillName(name2)) return { ok: false, message: `\u975E\u6CD5\u6280\u80FD\u540D: ${name2}` };
-  if (!/^\.trash-\d{14}-[\w.-]+$/.test(trash)) return { ok: false, message: `\u975E\u6CD5\u56DE\u6536\u76EE\u5F55\u540D: ${trash}` };
-  if (!trash.endsWith(`-${name2}`)) return { ok: false, message: `\u56DE\u6536\u76EE\u5F55\u4E0E\u6280\u80FD\u540D\u4E0D\u5339\u914D: ${trash} / ${name2}` };
+  if (!isValidSkillName(name2)) return { ok: false, message: `Invalid skill name: ${name2}` };
+  if (!/^\.trash-\d{14}-[\w.-]+$/.test(trash)) return { ok: false, message: `Invalid trash directory name: ${trash}` };
+  if (!trash.endsWith(`-${name2}`)) return { ok: false, message: `Trash directory does not match skill name: ${trash} / ${name2}` };
   const trashPath = join(installDir, trash);
-  if (!await pathExists(trashPath)) return { ok: false, message: `\u672A\u627E\u5230\u56DE\u6536\u76EE\u5F55: ${trash}` };
+  if (!await pathExists(trashPath)) return { ok: false, message: `Trash directory not found: ${trash}` };
   const target = join(installDir, name2);
   await rm(target, { recursive: true, force: true });
   await rename(trashPath, target);
-  return { ok: true, message: `\u5DF2\u6062\u590D ${name2}\uFF08\u4ECE ${trash} \u79FB\u56DE\u5B89\u88C5\u76EE\u5F55\uFF09` };
+  return { ok: true, message: `${name2} restored (moved back to ${trash})` };
 }
 async function findProjectRoot(cwd) {
   let current = resolve(cwd);
@@ -203,12 +203,12 @@ async function detectSources(cwd, installDir = defaultInstallDir()) {
   const projectRoot = await findProjectRoot(cwd);
   const home = homedir();
   const candidates = [
-    { id: "codex-user", label: "Codex\uFF08\u7528\u6237\u7EA7\uFF09~/.codex/skills", tool: "codex", path: join(home, ".codex", "skills") },
-    { id: "codex-project", label: "Codex\uFF08\u9879\u76EE\u7EA7\uFF09.codex/skills", tool: "codex", path: join(projectRoot, ".codex", "skills") },
-    { id: "claude-user", label: "Claude Code\uFF08\u7528\u6237\u7EA7\uFF09~/.claude/skills", tool: "claude", path: join(home, ".claude", "skills") },
-    { id: "claude-project", label: "Claude Code\uFF08\u9879\u76EE\u7EA7\uFF09.claude/skills", tool: "claude", path: join(projectRoot, ".claude", "skills") },
-    { id: "opencode-project", label: "OpenCode\uFF08\u9879\u76EE\u7EA7\uFF09.opencode/skills", tool: "opencode", path: join(projectRoot, ".opencode", "skills") },
-    { id: "agents-project", label: "OpenCode\uFF08\u9879\u76EE\u7EA7\uFF09.agents/skills", tool: "opencode", path: join(projectRoot, ".agents", "skills") }
+    { id: "codex-user", label: "Codex (user level) ~/.codex/skills", tool: "codex", path: join(home, ".codex", "skills") },
+    { id: "codex-project", label: "Codex (project level) .codex/skills", tool: "codex", path: join(projectRoot, ".codex", "skills") },
+    { id: "claude-user", label: "Claude Code (user level) ~/.claude/skills", tool: "claude", path: join(home, ".claude", "skills") },
+    { id: "claude-project", label: "Claude Code (project level) .claude/skills", tool: "claude", path: join(projectRoot, ".claude", "skills") },
+    { id: "opencode-project", label: "OpenCode (project level) .opencode/skills", tool: "opencode", path: join(projectRoot, ".opencode", "skills") },
+    { id: "agents-project", label: "OpenCode (project level) .agents/skills", tool: "opencode", path: join(projectRoot, ".agents", "skills") }
   ];
   const installed = new Set((await listInstalled(installDir)).map((s) => s.name));
   const groups = [];
@@ -291,8 +291,8 @@ async function inspectRepo(owner, repo, token) {
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers, signal: AbortSignal.timeout(2e4) });
   if (!res.ok) {
-    if (res.status === 404) throw new Error(`GitHub \u4ED3\u5E93\u4E0D\u5B58\u5728: ${owner}/${repo}`);
-    throw new Error(`GitHub API ${res.status}\uFF08\u4ED3\u5E93\u53EF\u80FD\u4E0D\u5B58\u5728\u6216\u5DF2\u88AB\u9650\u6D41\uFF09`);
+    if (res.status === 404) throw new Error(`GitHub repository not found: ${owner}/${repo}`);
+    throw new Error(`GitHub API ${res.status} (repository may not exist or is rate limited)`);
   }
   const data = await res.json();
   return {
@@ -305,7 +305,7 @@ async function downloadAndExtract(url, label) {
   const tarballPath = join2(tmp, "src.tar.gz");
   try {
     const res = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(12e4) });
-    if (!res.ok) throw new Error(`\u4E0B\u8F7D ${label} \u5931\u8D25: HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Failed to download ${label}: HTTP ${res.status}`);
     await writeFile(tarballPath, Buffer.from(await res.arrayBuffer()));
     await execFileAsync("tar", ["-xzf", tarballPath, "-C", tmp], {
       stdio: "ignore",
@@ -378,7 +378,7 @@ async function installSkillsFromTree(root, installDir, defaultName) {
 async function installFromGitHub(input, installDir, token) {
   const parsed = parseRepoInput(input);
   if (parsed === void 0) {
-    throw new Error("\u65E0\u6548\u7684 GitHub \u4ED3\u5E93\u5730\u5740\uFF08\u652F\u6301 owner/repo\u3001HTTPS URL\u3001SSH URL \u6216 Git URL\uFF09");
+    throw new Error("Invalid GitHub repository address (supports owner/repo, HTTPS URL, SSH URL, or Git URL)");
   }
   const meta = await inspectRepo(parsed.owner, parsed.repo, token);
   const branch = parsed.ref ?? meta.defaultBranch;
@@ -387,7 +387,7 @@ async function installFromGitHub(input, installDir, token) {
   try {
     const installed = await installSkillsFromTree(root, installDir, normalizeSkillName(parsed.repo));
     if (installed.length === 0) {
-      throw new Error("\u8BE5\u4ED3\u5E93\u91CC\u6CA1\u6709\u627E\u5230 SKILL.md\uFF0C\u770B\u8D77\u6765\u4E0D\u662F\u6280\u80FD\u4ED3\u5E93");
+      throw new Error("No SKILL.md found in this repository; seems not a skill repository");
     }
     return { repo: `${parsed.owner}/${parsed.repo}`, branch, installed };
   } finally {
@@ -426,13 +426,13 @@ async function npmTarball(name2, version) {
     headers: { Accept: "application/vnd.npm.install-v1+json", "User-Agent": USER_AGENT },
     signal: AbortSignal.timeout(3e4)
   });
-  if (!res.ok) throw new Error(`npm \u5305\u4E0D\u5B58\u5728: ${name2}\uFF08HTTP ${res.status}\uFF09`);
+  if (!res.ok) throw new Error(`npm package not found: ${name2} (HTTP ${res.status})`);
   const data = await res.json();
   const resolvedVersion = version ?? data["dist-tags"]?.latest;
   const entry = resolvedVersion !== void 0 ? data.versions?.[resolvedVersion] : void 0;
   const tarball = entry?.dist?.tarball ?? data.dist?.tarball;
   if (typeof tarball !== "string" || tarball === "") {
-    throw new Error(`npm \u5305\u6CA1\u6709\u53EF\u4E0B\u8F7D\u7684 tarball: ${name2}${version !== void 0 ? `@${version}` : ""}`);
+    throw new Error(`npm package has no downloadable tarball: ${name2}${version !== void 0 ? `@${version}` : ""}`);
   }
   return {
     url: tarball,
@@ -442,13 +442,13 @@ async function npmTarball(name2, version) {
 }
 async function installFromNpm(spec, installDir) {
   const parsed = parseNpmSpec(spec);
-  if (parsed === void 0) throw new Error(`\u65E0\u6548\u7684 npm \u5305\u540D: ${spec}`);
+  if (parsed === void 0) throw new Error(`Invalid npm package name: ${spec}`);
   const { url, resolvedVersion } = await npmTarball(parsed.name, parsed.version);
   const { root, cleanup } = await downloadAndExtract(url, `npm:${parsed.name}`);
   try {
     const installed = await installSkillsFromTree(root, installDir, normalizeSkillName(parsed.name));
     if (installed.length === 0) {
-      throw new Error(`npm \u5305 ${parsed.name} \u91CC\u6CA1\u6709\u627E\u5230 SKILL.md\uFF0C\u770B\u8D77\u6765\u4E0D\u662F\u6280\u80FD\u5305`);
+      throw new Error(`No SKILL.md found in npm package ${parsed.name}; seems not a skill package`);
     }
     return { package: parsed.name, version: resolvedVersion, installed };
   } finally {
@@ -580,10 +580,10 @@ async function importSkills(body, installDir, token) {
       const path = typeof body?.path === "string" ? body.path.trim() : "";
       if (path === "") throw new Error("local import requires a path");
       const sourceDir = resolve2(path);
-      if (!await pathExists(sourceDir)) throw new Error(`\u8DEF\u5F84\u4E0D\u5B58\u5728: ${sourceDir}`);
+      if (!await pathExists(sourceDir)) throw new Error(`Path does not exist: ${sourceDir}`);
       const imported = await installAllFromRoot(sourceDir, installDir);
       if (imported.length === 0) {
-        throw new Error(`\u8DEF\u5F84\u4E2D\u6CA1\u6709\u627E\u5230\u6709\u6548\u7684\u6280\u80FD\uFF08\u9700\u8981\u5305\u542B SKILL.md \u7684\u76EE\u5F55\u6216 .md \u6280\u80FD\u6587\u4EF6\uFF09: ${sourceDir}`);
+        throw new Error(`No valid skill found in path (needs a directory containing SKILL.md or .md skill file): ${sourceDir}`);
       }
       return { ok: true, imported };
     }
@@ -591,13 +591,13 @@ async function importSkills(body, installDir, token) {
       const repository = typeof body?.repository === "string" ? body.repository.trim() : "";
       if (repository === "") throw new Error("github import requires a repository");
       if (parseRepoInput(repository) === void 0) {
-        throw new Error("\u65E0\u6548\u7684 GitHub \u4ED3\u5E93\u5730\u5740\uFF08\u652F\u6301 owner/repo\u3001HTTPS URL\u3001SSH URL \u6216 Git URL\uFF09");
+        throw new Error("Invalid GitHub repository address (supports owner/repo, HTTPS URL, SSH URL, or Git URL)");
       }
       const result = await installFromGitHub(repository, installDir, token);
       return { ok: true, imported: result.installed, source: result.repo, branch: result.branch };
     }
     default:
-      throw new Error(`\u672A\u77E5\u7684\u5BFC\u5165\u7C7B\u578B: ${type || "(empty)"}\uFF08\u652F\u6301 codex / claude / opencode / local / github\uFF09`);
+      throw new Error(`Unknown import type: ${type || "(empty)"} (supports codex / claude / opencode / local / github)`);
   }
 }
 async function installRemote(body, installDir, token) {

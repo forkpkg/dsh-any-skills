@@ -10,7 +10,7 @@
  *     caret position** (falling back to the end when the caret is unknown)
  *     via `inputActions.setDraft`, so the skill loads with the message.
  *
- *  2. `settings.section` — a "Skill 管理" settings page: installed list with
+ *  2. `settings.section` — a "Skill Management" settings page: installed list with
  *     uninstall, import from Codex / Claude Code / OpenCode and local
  *     directories, and batch install from GitHub / npm.
  *
@@ -490,7 +490,7 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
           ? h('div', { className: 'dsh-as-status' }, '加载中…')
           : h('div', { className: 'dsh-as-list' },
             filtered.length === 0
-              ? h('div', { className: 'dsh-as-status' }, skills.length === 0 ? '还没有安装技能。到 设置 → Skill 管理 导入。' : '没有匹配的技能')
+              ? h('div', { className: 'dsh-as-status' }, skills.length === 0 ? '还没有安装技能。到 设置 → Skill Management 导入。' : '没有匹配的技能')
               : filtered.map((skill) => h('button', {
                 key: skill.name,
                 type: 'button',
@@ -633,7 +633,7 @@ function SkillsSettingsSection(): ReturnType<typeof h> {
   return h('div', { className: 'dsh-as-page', 'aria-busy': busy },
     h('header', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' } },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
-        h('h2', { style: { margin: 0, fontSize: 18, fontWeight: 600 } }, 'Skill 管理'),
+        h('h2', { style: { margin: 0, fontSize: 18, fontWeight: 600 } }, 'Skill Management'),
         busy ? h(IconRefresh, { spin: true }) : null,
       ),
       h('button', { type: 'button', className: 'dsh-as-btn2', onClick: () => void refresh(), disabled: busy, title: '刷新' },
@@ -862,7 +862,7 @@ export function apply(ctx: ClientContext): void {
           name: 'settings.section',
           id: 'skills',
           order: 35,
-          label: 'Skill 管理',
+          label: 'Skill Management',
         },
         SkillsSettingsSection,
       ),

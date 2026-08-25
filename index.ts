@@ -207,10 +207,10 @@ async function importSkills(
       const path = typeof body?.path === 'string' ? body.path.trim() : ''
       if (path === '') throw new Error('local import requires a path')
       const sourceDir = resolve(path)
-      if (!(await pathExists(sourceDir))) throw new Error(`路径不存在: ${sourceDir}`)
+      if (!(await pathExists(sourceDir))) throw new Error(`Path does not exist: ${sourceDir}`)
       const imported = await installAllFromRoot(sourceDir, installDir)
       if (imported.length === 0) {
-        throw new Error(`路径中没有找到有效的技能（需要包含 SKILL.md 的目录或 .md 技能文件）: ${sourceDir}`)
+        throw new Error(`No valid skill found in path (needs a directory containing SKILL.md or .md skill file): ${sourceDir}`)
       }
       return { ok: true, imported }
     }
@@ -218,13 +218,13 @@ async function importSkills(
       const repository = typeof body?.repository === 'string' ? body.repository.trim() : ''
       if (repository === '') throw new Error('github import requires a repository')
       if (parseRepoInput(repository) === undefined) {
-        throw new Error('无效的 GitHub 仓库地址（支持 owner/repo、HTTPS URL、SSH URL 或 Git URL）')
+        throw new Error('Invalid GitHub repository address (supports owner/repo, HTTPS URL, SSH URL, or Git URL)')
       }
       const result = await installFromGitHub(repository, installDir, token)
       return { ok: true, imported: result.installed, source: result.repo, branch: result.branch }
     }
     default:
-      throw new Error(`未知的导入类型: ${type || '(empty)'}（支持 codex / claude / opencode / local / github）`)
+      throw new Error(`Unknown import type: ${type || '(empty)'} (supports codex / claude / opencode / local / github)`)
   }
 }
 

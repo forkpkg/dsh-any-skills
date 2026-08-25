@@ -1,8 +1,8 @@
 # dsh-any-skills
 
-> Import, install and invoke Agent Skills in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from **Codex / Claude Code / OpenCode / GitHub / npm** — with a ⚡ composer-side skill picker and a **Skill 管理** settings page.
+> Import, install and invoke Agent Skills in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from **Codex / Claude Code / OpenCode / GitHub / npm** — with a ⚡ composer-side skill picker and a **Skill Management** settings page.
 >
-> 从 Codex / Claude Code / OpenCode / GitHub / npm 导入并安装技能（Agent Skills）到 `~/.dsh/skills`，支持在对话框旁一键插入 `/技能名` 调用，并在设置页提供完整的技能管理界面。
+> Import and install Agent Skills from Codex / Claude Code / OpenCode / GitHub / npm to `~/.dsh/skills`; support one-click insertion of `/skill-name` next to the dialog, and provide a comprehensive skill management interface in the settings page.
 
 ![dsh-plugin](https://img.shields.io/badge/dsh-plugin-%40deepseek--ai%2Fdsh-blue) ![license](https://img.shields.io/badge/license-MIT-green)
 
@@ -20,7 +20,7 @@
   - 支持批量安装（空格 / 逗号 / 分号分隔）
 - **对话中调用（Invoke）**
   - composer 旁 ⚡ 按钮 → 弹出可搜索的技能列表 → 选择后向输入框插入 `/skill-name`（DSH 原生用户调用手势，随消息一起加载技能）
-- **设置页（Settings）**：`设置 → Skill 管理`，列出已安装技能、卸载、按来源导入、GitHub/npm 安装
+- **设置页（Settings）**：`设置 → Skill Management`，列出已安装技能、卸载、按来源导入、GitHub/npm 安装
 
 所有导入/安装的技能写入 `~/.dsh/skills/`（可配置）。这是 DSH 原生技能提供器（`dsh-skill-filesystem`）的 `user-dsh` 根目录，会自动被监听 —— **无需任何额外注册**，模型即可读取新技能，`/skill-name` 手势立即可用。
 
@@ -55,9 +55,9 @@ dsh plugin --profile web add .
 2. 顶部搜索框可过滤技能（按名称/描述，支持最近使用优先排序）
 3. 选择技能后自动在输入框插入 `/skill-name` 并附带空格 —— 发送消息时 DSH 会加载该技能
 
-### 2. 设置页 Skill 管理
+### 2. 设置页 Skill Management
 
-`设置（左下角齿轮）→ Skill 管理`：
+`设置（左下角齿轮）→ Skill Management`：
 
 - **⚡ 按钮开关**：可在设置页开启/关闭对话输入框旁的 ⚡ 技能选择按钮（默认开启；关闭后仍可用 `/技能名` 直接调用）
 - **已安装技能**：列出所有已安装技能，可单个卸载（移入 `.trash-<时间戳>-<名称>`，可手动恢复）；卸载后提示中包含回收目录名、一键「恢复」按钮与 `mv` 手动恢复命令
@@ -141,7 +141,7 @@ dsh-any-skills/
 ├── cordis.dev.yml        # 开发用 overlay
 ├── build.mjs             # esbuild 构建脚本
 ├── index.ts              # Host 端：/api/skills/* 路由 + 技能管理逻辑
-├── client.ts             # Client 端：⚡ 按钮 + 技能选择弹窗 + Skill 管理设置页
+├── client.ts             # Client 端：⚡ 按钮 + 技能选择弹窗 + Skill Management设置页
 ├── src/
 │   ├── skills.ts         # 核心：frontmatter 解析、名称规范化、扫描/复制/卸载
 │   └── remote.ts         # GitHub / npm tarball 解析与安装
@@ -163,7 +163,7 @@ dsh-any-skills/
 
 **⚡ 按钮不见了？**
 
-设置 → Skill 管理 → 「在对话输入框旁显示 ⚡ 技能选择按钮」被关闭了；打开即可。
+设置 → Skill Management → 「在对话输入框旁显示 ⚡ 技能选择按钮」被关闭了；打开即可。
 关闭时仍可手动输入 `/技能名` 调用。
 
 **卸载错了，怎么手动恢复？**

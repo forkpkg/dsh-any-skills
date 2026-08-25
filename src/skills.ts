@@ -276,13 +276,13 @@ export async function uninstallSkill(
   installDir: string,
   name: string,
 ): Promise<{ ok: boolean; message: string; trash?: string }> {
-  if (!/^[\w.-]+$/.test(name)) return { ok: false, message: `非法技能名: ${name}` }
+  if (!/^[\w.-]+$/.test(name)) return { ok: false, message: `Invalid skill name: ${name}` }
   const target = join(installDir, name)
-  if (!(await pathExists(target))) return { ok: false, message: `未找到已安装的技能: ${name}` }
+  if (!(await pathExists(target))) return { ok: false, message: `No installed skill found: ${name}` }
   const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
   const trash = join(installDir, `.trash-${ts}-${name}`)
   await rename(target, trash)
-  return { ok: true, message: `已卸载 ${name}（移入 ${basename(trash)}，可手动恢复）`, trash: basename(trash) }
+  return { ok: true, message: `Uninstalled ${name} (moved to ${basename(trash)}, can be restored manually)`, trash: basename(trash) }
 }
 
 /** Restore a trashed skill back to installDir/<name> . */
@@ -291,15 +291,15 @@ export async function restoreSkill(
   name: string,
   trash: string,
 ): Promise<{ ok: boolean; message: string }> {
-  if (!isValidSkillName(name)) return { ok: false, message: `非法技能名: ${name}` }
-  if (!/^\.trash-\d{14}-[\w.-]+$/.test(trash)) return { ok: false, message: `非法回收目录名: ${trash}` }
-  if (!trash.endsWith(`-${name}`)) return { ok: false, message: `回收目录与技能名不匹配: ${trash} / ${name}` }
+  if (!isValidSkillName(name)) return { ok: false, message: `Invalid skill name: ${name}` }
+  if (!/^\.trash-\d{14}-[\w.-]+$/.test(trash)) return { ok: false, message: `Invalid trash directory name: ${trash}` }
+  if (!trash.endsWith(`-${name}`)) return { ok: false, message: `Trash directory does not match skill name: ${trash} / ${name}` }
   const trashPath = join(installDir, trash)
-  if (!(await pathExists(trashPath))) return { ok: false, message: `未找到回收目录: ${trash}` }
+  if (!(await pathExists(trashPath))) return { ok: false, message: `Trash directory not found: ${trash}` }
   const target = join(installDir, name)
   await rm(target, { recursive: true, force: true })
   await rename(trashPath, target)
-  return { ok: true, message: `已恢复 ${name}（从 ${trash} 移回安装目录）` }
+  return { ok: true, message: `${name} restored (moved back to ${trash})` }
 }
 
 /** Walk up from cwd to the nearest directory containing a `.git` entry. */
@@ -323,12 +323,12 @@ export async function detectSources(cwd: string, installDir: string = defaultIns
     tool: SkillSourceGroup['tool']
     path: string
   }> = [
-    { id: 'codex-user', label: 'Codex（用户级）~/.codex/skills', tool: 'codex', path: join(home, '.codex', 'skills') },
-    { id: 'codex-project', label: 'Codex（项目级）.codex/skills', tool: 'codex', path: join(projectRoot, '.codex', 'skills') },
-    { id: 'claude-user', label: 'Claude Code（用户级）~/.claude/skills', tool: 'claude', path: join(home, '.claude', 'skills') },
-    { id: 'claude-project', label: 'Claude Code（项目级）.claude/skills', tool: 'claude', path: join(projectRoot, '.claude', 'skills') },
-    { id: 'opencode-project', label: 'OpenCode（项目级）.opencode/skills', tool: 'opencode', path: join(projectRoot, '.opencode', 'skills') },
-    { id: 'agents-project', label: 'OpenCode（项目级）.agents/skills', tool: 'opencode', path: join(projectRoot, '.agents', 'skills') },
+    { id: 'codex-user', label: 'Codex (user level) ~/.codex/skills', tool: 'codex', path: join(home, '.codex', 'skills') },
+    { id: 'codex-project', label: 'Codex (project level) .codex/skills', tool: 'codex', path: join(projectRoot, '.codex', 'skills') },
+    { id: 'claude-user', label: 'Claude Code (user level) ~/.claude/skills', tool: 'claude', path: join(home, '.claude', 'skills') },
+    { id: 'claude-project', label: 'Claude Code (project level) .claude/skills', tool: 'claude', path: join(projectRoot, '.claude', 'skills') },
+    { id: 'opencode-project', label: 'OpenCode (project level) .opencode/skills', tool: 'opencode', path: join(projectRoot, '.opencode', 'skills') },
+    { id: 'agents-project', label: 'OpenCode (project level) .agents/skills', tool: 'opencode', path: join(projectRoot, '.agents', 'skills') },
   ]
 
   const installed = new Set((await listInstalled(installDir)).map((s) => s.name))

@@ -388,7 +388,7 @@ function SkillPickerButton(props) {
       error !== void 0 ? (0, import_react.createElement)("div", { className: "dsh-as-status" }, `\u52A0\u8F7D\u5931\u8D25\uFF1A${error}`) : skills === void 0 ? (0, import_react.createElement)("div", { className: "dsh-as-status" }, "\u52A0\u8F7D\u4E2D\u2026") : (0, import_react.createElement)(
         "div",
         { className: "dsh-as-list" },
-        filtered.length === 0 ? (0, import_react.createElement)("div", { className: "dsh-as-status" }, skills.length === 0 ? "\u8FD8\u6CA1\u6709\u5B89\u88C5\u6280\u80FD\u3002\u5230 \u8BBE\u7F6E \u2192 Skill \u7BA1\u7406 \u5BFC\u5165\u3002" : "\u6CA1\u6709\u5339\u914D\u7684\u6280\u80FD") : filtered.map((skill) => (0, import_react.createElement)(
+        filtered.length === 0 ? (0, import_react.createElement)("div", { className: "dsh-as-status" }, skills.length === 0 ? "\u8FD8\u6CA1\u6709\u5B89\u88C5\u6280\u80FD\u3002\u5230 \u8BBE\u7F6E \u2192 Skill Management \u5BFC\u5165\u3002" : "\u6CA1\u6709\u5339\u914D\u7684\u6280\u80FD") : filtered.map((skill) => (0, import_react.createElement)(
           "button",
           {
             key: skill.name,
@@ -517,7 +517,7 @@ function SkillsSettingsSection() {
       (0, import_react.createElement)(
         "div",
         { style: { display: "flex", alignItems: "center", gap: 8 } },
-        (0, import_react.createElement)("h2", { style: { margin: 0, fontSize: 18, fontWeight: 600 } }, "Skill \u7BA1\u7406"),
+        (0, import_react.createElement)("h2", { style: { margin: 0, fontSize: 18, fontWeight: 600 } }, "Skill Management"),
         busy ? (0, import_react.createElement)(IconRefresh, { spin: true }) : null
       ),
       (0, import_react.createElement)(
@@ -765,7 +765,7 @@ function apply(ctx) {
           name: "settings.section",
           id: "skills",
           order: 35,
-          label: "Skill \u7BA1\u7406"
+          label: "Skill Management"
         },
         SkillsSettingsSection
       )
