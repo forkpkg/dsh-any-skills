@@ -113,8 +113,8 @@ export async function inspectRepo(owner: string, repo: string, token?: string): 
   if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(`${GH_API}/repos/${owner}/${repo}`, { headers, signal: AbortSignal.timeout(20000) })
   if (!res.ok) {
-    if (res.status === 404) throw new Error(`GitHub 仓库不存在: ${owner}/${repo}`)
-    throw new Error(`GitHub API ${res.status}（仓库可能不存在或已被限流）`)
+    if (res.status === 404) throw new Error(`GitHub repository not found: ${owner}/${repo}`)
+    throw new Error(`GitHub API ${res.status} (repository may not exist or is rate limited)`)
   }
   const data = (await res.json()) as { default_branch?: string; description?: string }
   return {
@@ -129,7 +129,7 @@ async function downloadAndExtract(url: string, label: string): Promise<{ root: s
   const tarballPath = join(tmp, 'src.tar.gz')
   try {
     const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(120000) })
-    if (!res.ok) throw new Error(`下载 ${label} 失败: HTTP ${res.status}`)
+    if (!res.ok) throw new Error(`Failed to download ${label}: HTTP ${res.status}`)
     await writeFile(tarballPath, Buffer.from(await res.arrayBuffer()))
     await execFileAsync('tar', ['-xzf', tarballPath, '-C', tmp], {
       stdio: 'ignore',
@@ -221,7 +221,7 @@ export async function installSkillsFromTree(root: string, installDir: string, de
 export async function installFromGitHub(input: string, installDir: string, token?: string): Promise<{ repo: string; branch: string; installed: SkillSummary[] }> {
   const parsed = parseRepoInput(input)
   if (parsed === undefined) {
-    throw new Error('无效的 GitHub 仓库地址（支持 owner/repo、HTTPS URL、SSH URL 或 Git URL）')
+    throw new Error('Invalid GitHub repository address (supports owner/repo, HTTPS URL, SSH URL, or Git URL)')
   }
   const meta = await inspectRepo(parsed.owner, parsed.repo, token)
   const branch = parsed.ref ?? meta.defaultBranch
@@ -230,7 +230,7 @@ export async function installFromGitHub(input: string, installDir: string, token
   try {
     const installed = await installSkillsFromTree(root, installDir, normalizeSkillName(parsed.repo))
     if (installed.length === 0) {
-      throw new Error('该仓库里没有找到 SKILL.md，看起来不是技能仓库')
+      throw new Error('No SKILL.md found in this repository; seems not a skill repository')
     }
     return { repo: `${parsed.owner}/${parsed.repo}`, branch, installed }
   } finally {
@@ -272,7 +272,7 @@ async function npmTarball(name: string, version: string | undefined): Promise<{ 
     headers: { Accept: 'application/vnd.npm.install-v1+json', 'User-Agent': USER_AGENT },
     signal: AbortSignal.timeout(30000),
   })
-  if (!res.ok) throw new Error(`npm 包不存在: ${name}（HTTP ${res.status}）`)
+  if (!res.ok) throw new Error(`npm package not found: ${name} (HTTP ${res.status})`)
   const data = (await res.json()) as {
     'dist-tags'?: Record<string, string>
     versions?: Record<string, { dist?: { tarball?: string }; description?: string }>
@@ -284,7 +284,7 @@ async function npmTarball(name: string, version: string | undefined): Promise<{ 
   const entry = resolvedVersion !== undefined ? data.versions?.[resolvedVersion] : undefined
   const tarball = entry?.dist?.tarball ?? data.dist?.tarball
   if (typeof tarball !== 'string' || tarball === '') {
-    throw new Error(`npm 包没有可下载的 tarball: ${name}${version !== undefined ? `@${version}` : ''}`)
+    throw new Error(`npm package has no downloadable tarball: ${name}${version !== undefined ? `@${version}` : ''}`)
   }
   return {
     url: tarball,
@@ -296,13 +296,13 @@ async function npmTarball(name: string, version: string | undefined): Promise<{ 
 /** Install every skill from an npm package into installDir. */
 export async function installFromNpm(spec: string, installDir: string): Promise<{ package: string; version: string; installed: SkillSummary[] }> {
   const parsed = parseNpmSpec(spec)
-  if (parsed === undefined) throw new Error(`无效的 npm 包名: ${spec}`)
+  if (parsed === undefined) throw new Error(`Invalid npm package name: ${spec}`)
   const { url, resolvedVersion } = await npmTarball(parsed.name, parsed.version)
   const { root, cleanup } = await downloadAndExtract(url, `npm:${parsed.name}`)
   try {
     const installed = await installSkillsFromTree(root, installDir, normalizeSkillName(parsed.name))
     if (installed.length === 0) {
-      throw new Error(`npm 包 ${parsed.name} 里没有找到 SKILL.md，看起来不是技能包`)
+      throw new Error(`No SKILL.md found in npm package ${parsed.name}; seems not a skill package`)
     }
     return { package: parsed.name, version: resolvedVersion, installed }
   } finally {
