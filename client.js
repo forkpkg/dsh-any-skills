@@ -320,7 +320,7 @@ function SkillPickerButton(props) {
         requestAnimationFrame(() => {
           try {
             ta.focus();
-            ta.setSelectionRange(caret, caret);
+            if (ta.value === text) ta.setSelectionRange(caret, caret);
           } catch {
           }
         });

@@ -414,7 +414,8 @@ function SkillPickerButton(props: PickerProps): ReturnType<typeof h> | null {
         requestAnimationFrame(() => {
           try {
             ta.focus()
-            ta.setSelectionRange(caret, caret)
+            // 受控组件可能尚未提交新值：值一致时才设置光标，避免被 clamp
+            if (ta.value === text) ta.setSelectionRange(caret, caret)
           } catch {
             /* ignore */
           }
