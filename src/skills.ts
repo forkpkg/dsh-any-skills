@@ -1,5 +1,5 @@
 /**
- * dsh-any-skills — core skill filesystem logic.
+ * dsh-any-skills - core skill filesystem logic.
  *
  * Skills are the DSH-native Agent Skill format: a directory bundle
  * `<name>/SKILL.md` or a flat `<name>.md`, whose frontmatter carries at least
@@ -17,7 +17,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
-/** DSH's exact skill-name rule — copied from @deepseek-ai/dsh-skill. */
+/** DSH's exact skill-name rule - copied from @deepseek-ai/dsh-skill. */
 export const SKILL_NAME_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 export interface SkillSummary {

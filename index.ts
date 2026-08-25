@@ -257,7 +257,7 @@ async function installRemote(body: { sources?: unknown }, installDir: string, to
         if (value === '') throw new Error('npm source requires a value')
         results.push({ source: value, ok: true, ...(await installFromNpm(value, installDir)) })
       } else {
-        results.push({ source: value || String(record.type ?? ''), ok: false, message: `未知的安装类型: ${type}` })
+        results.push({ source: value || String(record.type ?? ''), ok: false, message: `Unknown installation type: ${type}` })
       }
     } catch (error) {
       results.push({ source: value || String(record.type ?? ''), ok: false, message: errorMessage(error) })

@@ -242,11 +242,11 @@ test('uninstallSkill: rejects invalid names and missing skills', async () => {
   try {
     const bad = await uninstallSkill(dir, 'Bad Name!')
     assert.equal(bad.ok, false)
-    assert.match(bad.message, /非法技能名/)
+    assert.match(bad.message, /Invalid skill name/)
 
     const missing = await uninstallSkill(dir, 'no-such-skill')
     assert.equal(missing.ok, false)
-    assert.match(missing.message, /未找到已安装的技能/)
+    assert.match(missing.message, /No installed skill found/)
 
     const { readdir } = await import('node:fs/promises')
     assert.deepEqual(await readdir(dir), [], 'no stray trash entries created')
@@ -260,19 +260,19 @@ test('restoreSkill: rejects invalid names, malformed/mismatched/missing trash', 
   try {
     const badName = await restoreSkill(dir, 'Bad Name!', '.trash-20260101000000-Bad-Name')
     assert.equal(badName.ok, false)
-    assert.match(badName.message, /非法技能名/)
+    assert.match(badName.message, /Invalid skill name/)
 
     const malformed = await restoreSkill(dir, 'alpha', 'not-a-trash')
     assert.equal(malformed.ok, false)
-    assert.match(malformed.message, /非法回收目录/)
+    assert.match(malformed.message, /Invalid trash directory name/)
 
     const mismatched = await restoreSkill(dir, 'alpha', '.trash-20260101000000-beta')
     assert.equal(mismatched.ok, false)
-    assert.match(mismatched.message, /不匹配/)
+    assert.match(mismatched.message, /Trash directory does not match skill name/)
 
     const missing = await restoreSkill(dir, 'alpha', '.trash-20260101000000-alpha')
     assert.equal(missing.ok, false)
-    assert.match(missing.message, /未找到回收目录/)
+    assert.match(missing.message, /Trash directory not found/)
   } finally {
     await rm(dir, { recursive: true, force: true })
   }

@@ -1,6 +1,6 @@
 # dsh-any-skills
 
-> Import, install, and invoke Agent Skills in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from **Codex / Claude Code / OpenCode / GitHub / npm** — with a ⚡ composer‑side skill picker and a **Skill Management** settings page.
+> Import, install, and invoke Agent Skills in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) from **Codex / Claude Code / OpenCode / GitHub / npm** - with a ⚡ composer‑side skill picker and a **Skill Management** settings page.
 >
 > Import and install Agent Skills from Codex / Claude Code / OpenCode / GitHub / npm to `~/.dsh/skills`; support one‑click insertion of `/skill‑name` next to the dialog, and provide a comprehensive skill management interface in the settings page.
 
@@ -19,10 +19,10 @@
   - npm: resolve package tarball via registry API and extract
   - Supports bulk installation (space / comma / semicolon separated)
 - **Invoke in Conversation**
-  - Composer side ⚡ button → opens searchable skill list → inserts `/skill‑name` into input
-- **Settings Page**: `Settings → Skill Management` lists installed skills, allows uninstalling, source importing, and GitHub/npm installation
+  - Composer side ⚡ button -> opens searchable skill list -> inserts `/skill‑name` into input
+- **Settings Page**: `Settings -> Skill Management` lists installed skills, allows uninstalling, source importing, and GitHub/npm installation
 
-All imported/installed skills are written to `~/.dsh/skills/` (configurable). This is the native skill provider (`dsh-skill-filesystem`) root directory, automatically watched — **no extra registration needed**. The model can read new skills immediately, and the `/skill‑name` gesture is available.
+All imported/installed skills are written to `~/.dsh/skills/` (configurable). This is the native skill provider (`dsh-skill-filesystem`) root directory, automatically watched - **no extra registration needed**. The model can read new skills immediately, and the `/skill‑name` gesture is available.
 
 ## Installation
 
@@ -40,7 +40,7 @@ All imported/installed skills are written to `~/.dsh/skills/` (configurable). Th
 
 Restart `dsh web` after installing.
 
-> **Note:** The `missing peer @deepseek‑ai/cordis@^4.0.1` warning during installation is normal — it matches other dsh plugins (dshmarket, dsh‑at‑file, etc.). Cordis is provided by DSH itself; no separate install required. `Ignored build scripts: esbuild` is harmless: the repo is already built.
+> **Note:** The `missing peer @deepseek‑ai/cordis@^4.0.1` warning during installation is normal - it matches other dsh plugins (dshmarket, dsh‑at‑file, etc.). Cordis is provided by DSH itself; no separate install required. `Ignored build scripts: esbuild` is harmless: the repo is already built.
 
 ## Usage
 
@@ -54,7 +54,7 @@ There is a ⚡ button beside the conversation input:
 
 ### 2. Settings Page Skill Management
 
-`Settings → Skill Management`:
+`Settings -> Skill Management`:
 
 - **⚡ Button Switch**: enable/disable the ⚡ button next to the conversation input (default on; can still use `/skill‑name` directly when off)
 - **Installed Skills**: lists all installed skills, each can be uninstalled (moves to `.trash-\u003ctimestamp\u003e-\u003cname\u003e`, can be restored manually). After uninstalling, the UI shows the trash directory name, a restore button, and a manual `mv` command.
@@ -67,8 +67,8 @@ The host registers same‑origin JSON APIs on dsh webServer (the browser UI call
 
 | Method | Path | Body | Description |
 | --- | --- | --- | --- |
-| GET | `/api/skills/list` | – | List installed skills |
-| GET | `/api/skills/sources?cwd=…` | – | Detect Codex/Claude/OpenCode importable skills |
+| GET | `/api/skills/list` | - | List installed skills |
+| GET | `/api/skills/sources?cwd=…` | - | Detect Codex/Claude/OpenCode importable skills |
 | POST | `/api/skills/import` | `{type, path?, repository?, sourceId?, cwd?, names?}` | Import (`type: codex/claude/opencode/local/github`; `names` can import specific skills) |
 | POST | `/api/skills/install` | `{sources: [{type: 'github'|'npm', value}]}` | Bulk install |
 | DELETE | `/api/skills/uninstall` | `{name}` | Uninstall (returns `trash` directory name; moves to .trash) |
@@ -147,19 +147,19 @@ dsh-any-skills/
 
 ## Reference Implementations
 
-- [dsh-skills-manager](https://github.com/Xichun123/dsh-skills-manager) — settings sidebar + composer wrench UI
-- [dsh-skill-market](https://github.com/QQ-M/dsh-skill-market) — GitHub tarball installer to `~/.dsh/skills`
-- [dsh-skill-picker](https://github.com/a735624258/dsh-skill-picker) — composer side searchable picker
+- [dsh-skills-manager](https://github.com/Xichun123/dsh-skills-manager) - settings sidebar + composer wrench UI
+- [dsh-skill-market](https://github.com/QQ-M/dsh-skill-market) - GitHub tarball installer to `~/.dsh/skills`
+- [dsh-skill-picker](https://github.com/a735624258/dsh-skill-picker) - composer side searchable picker
 
 ## FAQ
 
 **Unable to see new skills after import/installation?**
 
-`~/.dsh/skills` is watched by the native dsh skill provider (`dsh-skill-filesystem`). No restart is required; in rare cases you may need to wait 1–2 seconds or start a fresh session.
+`~/.dsh/skills` is watched by the native dsh skill provider (`dsh-skill-filesystem`). No restart is required; in rare cases you may need to wait 1-2 seconds or start a fresh session.
 
 **⚡ Button disappeared?**
 
-`Settings → Skill Management → Show ⚡ button next to the conversation input` was turned off; toggle it on.
+`Settings -> Skill Management -> Show ⚡ button next to the conversation input` was turned off; toggle it on.
 
 When off, you can still manually call skills with `/skill‑name`.
 
